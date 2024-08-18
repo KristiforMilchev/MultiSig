@@ -1,0 +1,74 @@
+
+
+1_initial_migration.js
+======================
+
+   Replacing 'Migrations'
+   ----------------------
+   > transaction hash:    0x49efab68bd4bccbf4d5e70fb54fbf3dec556f967071d5847846327181be88c1b
+   > Blocks: 0            Seconds: 0
+   > contract address:    0x105A063cA6C36581c54a1d563d8a4a8Ac45AdB32
+   > block number:        42285046
+   > block timestamp:     1721663998
+   > account:             0xdb8340fC4a6620CA3Dd8c12404FA6477826dD60F
+   > balance:             99999499884.33031147378098758
+   > gas used:            153841 (0x258f1)
+   > gas price:           20 gwei
+   > value sent:          0 ETH
+   > total cost:          0.00307682 ETH
+
+   > Saving migration to chain.
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:          0.00307682 ETH
+
+
+2_deployer_multi_sig.js
+=======================
+
+   Deploying 'MultiSig'
+   --------------------
+   > transaction hash:    0xc8b6d3b784a03813821e472642e9e3d661d89c213b5984d840ddb697bd174f37
+   > Blocks: 0            Seconds: 0
+   > contract address:    0x23bd0aC4657695eAd10Be51d380b1Bd4Fec333de
+   > block number:        42285048
+   > block timestamp:     1721664003
+   > account:             0xdb8340fC4a6620CA3Dd8c12404FA6477826dD60F
+   > balance:             99999499884.30063363378098758
+   > gas used:            1461581 (0x164d4d)
+   > gas price:           20 gwei
+   > value sent:          0 ETH
+   > total cost:          0.02923162 ETH
+
+   > Saving migration to chain.
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:          0.02923162 ETH
+
+
+3_deplyer_faucet.js
+===================
+
+   Deploying 'Faucet'
+   ------------------
+   > transaction hash:    0xfca4c1e74bf1c247466373ae9a4e64bc5047027090d9314ad36a541491ab463e
+   > Blocks: 0            Seconds: 0
+   > contract address:    0xEe3b02B1b775009507d76D86b836C902F39E3C37
+   > block number:        42285050
+   > block timestamp:     1721664006
+   > account:             0xdb8340fC4a6620CA3Dd8c12404FA6477826dD60F
+   > balance:             99999499884.29640135378098758
+   > gas used:            189303 (0x2e377)
+   > gas price:           20 gwei
+   > value sent:          0 ETH
+   > total cost:          0.00378606 ETH
+
+   > Saving migration to chain.
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:          0.00378606 ETH
+
+Summary
+=======
+> Total deployments:   3
+> Final cost:          0.0360945 ETH
