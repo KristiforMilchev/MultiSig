@@ -242,15 +242,33 @@ contract MultiSig {
         ITokenPairV2 pair = ITokenPairV2(pairAddress);
         (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
 
-        (uint112 tokenReserve, uint112 stablecoinReserve) = pair.token0() ==
-            token
-            ? (reserve0, reserve1)
-            : (reserve1, reserve0);
+        address token0 = pair.token0();
+        address token1 = pair.token1();
 
-        uint256 tokenPriceInUsd = (uint256(stablecoinReserve) * 1e18) /
-            uint256(tokenReserve);
+        (address tokenReserve, address stablecoinReserve) = (token0 == token)
+            ? (token0, token1)
+            : (token1, token0);
+        (
+            uint112 tokenReserveAmount,
+            uint112 stablecoinReserveAmount
+        ) = (tokenReserve == token0)
+                ? (reserve0, reserve1)
+                : (reserve1, reserve0);
 
-        uint256 tokenAmountInWei = (usdAmount * 1e18) / tokenPriceInUsd;
+        uint8 tokenDecimals = IERC20(tokenReserve).decimals();
+        uint8 stablecoinDecimals = IERC20(stablecoinReserve).decimals();
+
+        uint256 tokenReserveNormalized = uint256(tokenReserveAmount) *
+            10 ** uint256(stablecoinDecimals);
+        uint256 stablecoinReserveNormalized = uint256(stablecoinReserveAmount) *
+            10 ** uint256(tokenDecimals);
+
+        uint256 tokenPriceInUsd = (stablecoinReserveNormalized * 1e18) /
+            tokenReserveNormalized;
+
+        uint256 tokenAmountInWei = (usdAmount *
+            10 ** uint256(tokenDecimals) *
+            1e18) / tokenPriceInUsd;
 
         return tokenAmountInWei;
     }
