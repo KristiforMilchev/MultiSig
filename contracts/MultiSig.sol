@@ -21,13 +21,22 @@ contract MultiSig {
     // PKSwap on BSC Testnet
     // Works because the local testnet is clone of the BSC Testnet, might need to find our a different one if you're running against
     // A Different network.
-    address factoryAddress = 0x6725F303b657a9451d8BA641348b6761A6CC7a17;
-    Factory[] public factories;
+    mapping(string => Factory) public factories;
 
-    constructor(address[] memory _owners, address _priceFeed) {
+    constructor(
+        address[] memory _owners,
+        address _priceFeed,
+        address _factory,
+        address _netowrkWrappedToken,
+        string memory _defaultFactoryName
+    ) {
         require(_owners.length > 0, "Owners required");
         owners = _owners;
         priceFeed = AggregatorV3Interface(_priceFeed);
+        factories[_defaultFactoryName] = Factory({
+            at: _factory,
+            wth: _netowrkWrappedToken
+        });
     }
 
     function getOwners() public view onlyOwner returns (address[] memory) {
@@ -190,6 +199,24 @@ contract MultiSig {
         return false;
     }
 
+    function addFactory(
+        string memory name,
+        address factoryAddress,
+        address baseFactoryCurrency
+    ) public payable returns (bool) {
+        require(
+            factories[name].at != address(0),
+            "Factory with that name already exists!"
+        );
+
+        factories[name] = Factory({
+            at: factoryAddress,
+            wth: baseFactoryCurrency
+        });
+
+        return true;
+    }
+
     function getLatestPrice() public view returns (int) {
         (, int price, , , ) = priceFeed.latestRoundData();
         return price;
@@ -197,18 +224,19 @@ contract MultiSig {
 
     function getPairForTokens(
         address tokenA,
-        address tokenB
+        string memory name
     ) public view returns (address) {
-        IV2Factory factory = IV2Factory(factoryAddress);
-        return factory.getPair(tokenA, tokenB);
+        Factory storage currentFactory = factories[name];
+        IV2Factory factory = IV2Factory(currentFactory.at);
+        return factory.getPair(tokenA, currentFactory.wth);
     }
 
     function convertUsdToTokenWei(
         address token,
-        address stablecoin,
-        uint256 usdAmount
+        uint256 usdAmount,
+        string memory factory
     ) public view returns (uint256) {
-        address pairAddress = getPairForTokens(token, stablecoin);
+        address pairAddress = getPairForTokens(token, factory);
         require(pairAddress != address(0), "Pair not found");
 
         ITokenPairV2 pair = ITokenPairV2(pairAddress);
