@@ -18,9 +18,6 @@ contract MultiSig {
     event Received(address, uint256);
     uint256 private proposalCounter;
     AggregatorV3Interface internal priceFeed;
-    // PKSwap on BSC Testnet
-    // Works because the local testnet is clone of the BSC Testnet, might need to find our a different one if you're running against
-    // A Different network.
     mapping(string => Factory) public factories;
 
     constructor(
@@ -242,35 +239,83 @@ contract MultiSig {
         ITokenPairV2 pair = ITokenPairV2(pairAddress);
         (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
 
-        address token0 = pair.token0();
-        address token1 = pair.token1();
+        (address tokenReserve, address stablecoinReserve) = getTokenReserves(
+            pair,
+            token
+        );
 
-        (address tokenReserve, address stablecoinReserve) = (token0 == token)
-            ? (token0, token1)
-            : (token1, token0);
         (
             uint112 tokenReserveAmount,
             uint112 stablecoinReserveAmount
-        ) = (tokenReserve == token0)
-                ? (reserve0, reserve1)
-                : (reserve1, reserve0);
+        ) = getReserveAmounts(pair, tokenReserve);
 
         uint8 tokenDecimals = IERC20(tokenReserve).decimals();
         uint8 stablecoinDecimals = IERC20(stablecoinReserve).decimals();
 
+        uint256 tokenPriceInUsd = calculatePriceInUsd(
+            tokenReserveAmount,
+            stablecoinReserveAmount,
+            tokenDecimals,
+            stablecoinDecimals
+        );
+
+        uint256 tokenAmountInWei = calculateTokenAmount(
+            usdAmount,
+            tokenPriceInUsd,
+            tokenDecimals
+        );
+
+        return tokenAmountInWei;
+    }
+
+    function getTokenReserves(
+        ITokenPairV2 pair,
+        address token
+    ) internal view returns (address tokenReserve, address stablecoinReserve) {
+        address token0 = pair.token0();
+        address token1 = pair.token1();
+
+        return (token0 == token) ? (token0, token1) : (token1, token0);
+    }
+
+    function getReserveAmounts(
+        ITokenPairV2 pair,
+        address tokenReserve
+    )
+        internal
+        view
+        returns (uint112 tokenReserveAmount, uint112 stablecoinReserveAmount)
+    {
+        (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
+        address token0 = pair.token0();
+
+        return
+            (tokenReserve == token0)
+                ? (reserve0, reserve1)
+                : (reserve1, reserve0);
+    }
+
+    function calculatePriceInUsd(
+        uint112 tokenReserveAmount,
+        uint112 stablecoinReserveAmount,
+        uint8 tokenDecimals,
+        uint8 stablecoinDecimals
+    ) internal pure returns (uint256) {
         uint256 tokenReserveNormalized = uint256(tokenReserveAmount) *
             10 ** uint256(stablecoinDecimals);
         uint256 stablecoinReserveNormalized = uint256(stablecoinReserveAmount) *
             10 ** uint256(tokenDecimals);
 
-        uint256 tokenPriceInUsd = (stablecoinReserveNormalized * 1e18) /
-            tokenReserveNormalized;
+        return (stablecoinReserveNormalized * 1e18) / tokenReserveNormalized;
+    }
 
-        uint256 tokenAmountInWei = (usdAmount *
-            10 ** uint256(tokenDecimals) *
-            1e18) / tokenPriceInUsd;
-
-        return tokenAmountInWei;
+    function calculateTokenAmount(
+        uint256 usdAmount,
+        uint256 tokenPriceInUsd,
+        uint8 tokenDecimals
+    ) internal pure returns (uint256) {
+        return
+            (usdAmount * 10 ** uint256(tokenDecimals) * 1e18) / tokenPriceInUsd;
     }
 
     function convertUsdToWei(uint256 usdAmount) public view returns (uint256) {
