@@ -28,18 +28,21 @@ contract DeploymentFactory {
     }
 
     function createLedger(
+        string memory _name,
         address[] memory _owners
     ) public payable returns (address) {
         uint256 fee = feeService.getRegistrationFee();
         require(msg.value >= fee, "Insufficient registration fee");
 
         MultiSig ms = new MultiSig(
+            _name,
             _owners,
             priceFeed,
             netowrkWrappedToken,
             factory,
             defaultFactoryName
         );
+
         return address(ms);
     }
 }

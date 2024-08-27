@@ -19,8 +19,10 @@ contract MultiSig {
     uint256 private proposalCounter;
     AggregatorV3Interface internal priceFeed;
     mapping(string => Factory) public factories;
+    string private name;
 
     constructor(
+        string memory _name,
         address[] memory _owners,
         address _priceFeed,
         address _factory,
@@ -28,6 +30,7 @@ contract MultiSig {
         string memory _defaultFactoryName
     ) {
         require(_owners.length > 0, "Owners required");
+        name = _name;
         owners = _owners;
         priceFeed = AggregatorV3Interface(_priceFeed);
         factories[_defaultFactoryName] = Factory({
