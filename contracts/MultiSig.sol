@@ -200,16 +200,16 @@ contract MultiSig {
     }
 
     function addFactory(
-        string memory name,
+        string memory _name,
         address factoryAddress,
         address baseFactoryCurrency
     ) public payable returns (bool) {
         require(
-            factories[name].at != address(0),
+            factories[_name].at != address(0),
             "Factory with that name already exists!"
         );
 
-        factories[name] = Factory({
+        factories[_name] = Factory({
             at: factoryAddress,
             wth: baseFactoryCurrency
         });
@@ -224,9 +224,9 @@ contract MultiSig {
 
     function getPairForTokens(
         address tokenA,
-        string memory name
+        string memory _name
     ) public view returns (address) {
-        Factory storage currentFactory = factories[name];
+        Factory storage currentFactory = factories[_name];
         IV2Factory factory = IV2Factory(currentFactory.at);
         return factory.getPair(tokenA, currentFactory.wth);
     }
@@ -240,8 +240,6 @@ contract MultiSig {
         require(pairAddress != address(0), "Pair not found");
 
         ITokenPairV2 pair = ITokenPairV2(pairAddress);
-        (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
-
         (address tokenReserve, address stablecoinReserve) = getTokenReserves(
             pair,
             token
