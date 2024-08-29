@@ -16,6 +16,8 @@ contract MultiSig {
     address[] private owners;
     mapping(uint256 => Transaction) private transactions;
     mapping(uint256 => Transaction) private nftTransactions;
+    // Mapping to track settings proposals
+    mapping(uint256 => SettingsProposal) public settingsProposals;
     Proposal[] private proposals;
     uint256 public nonce;
     uint256 public nftNonce;
@@ -24,17 +26,13 @@ contract MultiSig {
     AggregatorV3Interface internal priceFeed;
     mapping(string => Factory) public factories;
     string private name;
-
-    // New variables for daily transaction and max amount limit
-    uint256 public maxDailyTransactions = 5; // Default limit
-    bool public isMaxDailyTransactionsEnabled = true; // Limit can be turned off
-    uint256 public maxTransactionAmountUSD = 10000; // Default max amount in USD
-    bool public isMaxTransactionAmountEnabled = true; // Limit can be turned off
-    mapping(uint256 => uint256) private dailyTransactionCount; // Track transactions by day
+    uint256 public maxDailyTransactions = 5;
+    bool public isMaxDailyTransactionsEnabled = true;
+    uint256 public maxTransactionAmountUSD = 10000;
+    bool public isMaxTransactionAmountEnabled = true;
+    mapping(uint256 => uint256) private dailyTransactionCount;
     uint256 private lastTransactionDay;
 
-    // Mapping to track settings proposals
-    mapping(uint256 => SettingsProposal) public settingsProposals;
     uint256 public settingsProposalNonce = 0;
 
     constructor(
@@ -164,7 +162,6 @@ contract MultiSig {
         return address(this).balance;
     }
 
-    // Function to get the pair address from a specific factory
     function getPairAddress(
         address tokenA,
         address tokenB,
@@ -211,7 +208,6 @@ contract MultiSig {
         return tokenAmountInWei;
     }
 
-    // Helper function to convert Ether amount from wei to USD
     function convertWeiToUsd(
         uint256 amountInWei
     ) public view returns (uint256) {
@@ -220,7 +216,6 @@ contract MultiSig {
         return (amountInWei * uint256(ethToUsdPrice)) / 1e18;
     }
 
-    // Helper function to convert ERC20 token amount to USD
     function convertTokenToUsd(
         address token,
         uint256 amount,
@@ -252,7 +247,6 @@ contract MultiSig {
         return (amount * tokenPriceInUsd) / 10 ** tokenDecimals;
     }
 
-    // Function to propose changes to maxDailyTransactions and maxTransactionAmountUSD
     function proposeSettingsChange(
         uint256 newMaxDailyTransactions,
         uint256 newMaxTransactionAmountUSD,
@@ -270,7 +264,7 @@ contract MultiSig {
             .isMaxTransactionAmountEnabled = newIsMaxTransactionAmountEnabled;
         proposal.approvals.push(msg.sender);
         proposal.executed = false;
-        approveSettingsChange(proposalId); // Auto approve the proposal for the proposer
+        return settingsProposalNonce;
     }
 
     function approveSettingsChange(
