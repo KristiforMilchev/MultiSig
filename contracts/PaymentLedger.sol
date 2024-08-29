@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "../interfaces/AggregatorV3.sol";
 import "../interfaces/IERC20.sol";
-import "../interfaces/IERC721.sol"; // Added IERC721 for NFT support
+import "../interfaces/IERC721.sol";
 import "../interfaces/TokenPairV2.sol";
 import "../interfaces/V2Factory.sol";
 import "../structrues/factory.sol";
@@ -11,13 +11,17 @@ import "../structrues/OwnerVote.sol";
 import "../structrues/Proposal.sol";
 import "../structrues/Transaction.sol";
 import "../structrues/SettingProposal.sol";
+import "../structrues/SmartContractToken.sol";
 
-contract MultiSig {
+contract PaymentLedger {
     address[] private owners;
     mapping(uint256 => Transaction) private transactions;
     mapping(uint256 => Transaction) private nftTransactions;
     // Mapping to track settings proposals
     mapping(uint256 => SettingsProposal) public settingsProposals;
+    SmartContractToken[] whitelistedERC20;
+    address[] whitelistedERC721;
+
     Proposal[] private proposals;
     uint256 public nonce;
     uint256 public nftNonce;
@@ -38,6 +42,8 @@ contract MultiSig {
     constructor(
         string memory _name,
         address[] memory _owners,
+        SmartContractToken[] memory _whitelistedERC20,
+        address[] memory _whitelistedERC721,
         address _priceFeed,
         address _factory,
         address _networkWrappedToken,
@@ -46,11 +52,71 @@ contract MultiSig {
         require(_owners.length > 0, "Owners required");
         name = _name;
         owners = _owners;
+
+        for (uint256 i = 0; i < _whitelistedERC20.length; i++) {
+            SmartContractToken memory token = _whitelistedERC20[i];
+            whitelistedERC20.push(token);
+        }
+
+        for (uint256 i = 0; i < _whitelistedERC721.length; i++) {
+            whitelistedERC721.push(_whitelistedERC721[i]);
+        }
+
         priceFeed = AggregatorV3Interface(_priceFeed);
         factories[_defaultFactoryName] = Factory({
             at: _factory,
             wth: _networkWrappedToken
         });
+    }
+
+    function addWhitelistedERC20(
+        address tokenAddress,
+        int decimals
+    ) public onlyOwner returns (bool) {
+        require(!isTokenWhitelisted(tokenAddress), "Token already whitelisted");
+        SmartContractToken memory newToken = SmartContractToken({
+            contractAddress: tokenAddress,
+            decimals: decimals
+        });
+
+        whitelistedERC20.push(newToken);
+
+        return true;
+    }
+
+    function isTokenWhitelisted(
+        address tokenAddress
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < whitelistedERC20.length; i++) {
+            if (whitelistedERC20[i].contractAddress == tokenAddress) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function addWhitelistedERC721(
+        address tokenAddress
+    ) public onlyOwner returns (bool) {
+        require(
+            !isERC721TokenWhitelisted(tokenAddress),
+            "Token already whitelisted"
+        );
+
+        whitelistedERC721.push(tokenAddress);
+
+        return true;
+    }
+
+    function isERC721TokenWhitelisted(
+        address tokenAddress
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < whitelistedERC721.length; i++) {
+            if (whitelistedERC721[i] == tokenAddress) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function getOwners() public view onlyOwner returns (address[] memory) {

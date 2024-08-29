@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "./MultiSig.sol";
-import "../structrues/Token.sol";
+import "./PaymentLedger.sol";
+import "../structrues/SmartContractToken.sol";
 
 interface IFeeService {
     function getFeeInEthAndUsd()
@@ -43,7 +43,7 @@ contract DeploymentFactory {
         (uint256 feeInWei, ) = feeService.getFeeInEthAndUsd();
         require(msg.value >= feeInWei, "Insufficient registration fee");
 
-        MultiSig ms = new MultiSig(
+        PaymentLedger ms = new PaymentLedger(
             _name,
             _owners,
             whitelistedERC20,
