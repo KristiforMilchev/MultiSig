@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "./MultiSig.sol";
+import "../structrues/Token.sol";
 
 interface IFeeService {
     function getFeeInEthAndUsd()
@@ -35,7 +36,9 @@ contract DeploymentFactory {
 
     function createLedger(
         string memory _name,
-        address[] memory _owners
+        address[] memory _owners,
+        SmartContractToken[] memory whitelistedERC20,
+        address[] memory whitelistedERC721
     ) public payable returns (address) {
         (uint256 feeInWei, ) = feeService.getFeeInEthAndUsd();
         require(msg.value >= feeInWei, "Insufficient registration fee");
@@ -43,6 +46,8 @@ contract DeploymentFactory {
         MultiSig ms = new MultiSig(
             _name,
             _owners,
+            whitelistedERC20,
+            whitelistedERC721,
             priceFeed,
             netowrkWrappedToken,
             factory,
