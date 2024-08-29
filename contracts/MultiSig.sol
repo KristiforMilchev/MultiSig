@@ -3,30 +3,46 @@ pragma solidity ^0.8.19;
 
 import "../interfaces/AggregatorV3.sol";
 import "../interfaces/IERC20.sol";
+import "../interfaces/IERC721.sol"; // Added IERC721 for NFT support
 import "../interfaces/TokenPairV2.sol";
 import "../interfaces/V2Factory.sol";
 import "../structrues/factory.sol";
 import "../structrues/OwnerVote.sol";
 import "../structrues/Proposal.sol";
 import "../structrues/Transaction.sol";
+import "../structrues/SettingProposal.sol";
 
 contract MultiSig {
     address[] private owners;
     mapping(uint256 => Transaction) private transactions;
+    mapping(uint256 => Transaction) private nftTransactions;
     Proposal[] private proposals;
     uint256 public nonce;
+    uint256 public nftNonce;
     event Received(address, uint256);
     uint256 private proposalCounter;
     AggregatorV3Interface internal priceFeed;
     mapping(string => Factory) public factories;
     string private name;
 
+    // New variables for daily transaction and max amount limit
+    uint256 public maxDailyTransactions = 5; // Default limit
+    bool public isMaxDailyTransactionsEnabled = true; // Limit can be turned off
+    uint256 public maxTransactionAmountUSD = 10000; // Default max amount in USD
+    bool public isMaxTransactionAmountEnabled = true; // Limit can be turned off
+    mapping(uint256 => uint256) private dailyTransactionCount; // Track transactions by day
+    uint256 private lastTransactionDay;
+
+    // Mapping to track settings proposals
+    mapping(uint256 => SettingsProposal) public settingsProposals;
+    uint256 public settingsProposalNonce = 0;
+
     constructor(
         string memory _name,
         address[] memory _owners,
         address _priceFeed,
         address _factory,
-        address _netowrkWrappedToken,
+        address _networkWrappedToken,
         string memory _defaultFactoryName
     ) {
         require(_owners.length > 0, "Owners required");
@@ -35,29 +51,12 @@ contract MultiSig {
         priceFeed = AggregatorV3Interface(_priceFeed);
         factories[_defaultFactoryName] = Factory({
             at: _factory,
-            wth: _netowrkWrappedToken
+            wth: _networkWrappedToken
         });
     }
 
     function getOwners() public view onlyOwner returns (address[] memory) {
         return owners;
-    }
-
-    function proposePayment(
-        uint256 amount,
-        address to,
-        address token
-    ) public onlyOwner returns (bool) {
-        nonce++;
-        Transaction storage newTransaction = transactions[nonce];
-        newTransaction.amount = amount;
-        newTransaction.to = to;
-        newTransaction.state = false;
-        newTransaction.token = token;
-        newTransaction.approval.push(
-            OwnerVote({owner: msg.sender, vote: true})
-        );
-        return true;
     }
 
     function getTransactionHistory()
@@ -78,150 +77,6 @@ contract MultiSig {
         return transactionList;
     }
 
-    function approvePayment(uint256 _nonce) public onlyOwner returns (bool) {
-        Transaction storage newTransaction = transactions[_nonce];
-
-        bool alreadyApproved = false;
-        for (uint256 i = 0; i < newTransaction.approval.length; i++) {
-            if (newTransaction.approval[i].owner == msg.sender) {
-                alreadyApproved = true;
-                break;
-            }
-        }
-        require(
-            !alreadyApproved,
-            "Owner has already approved this transaction"
-        );
-
-        newTransaction.approval.push(
-            OwnerVote({owner: msg.sender, vote: true})
-        );
-
-        bool allApproved = true;
-        for (uint256 i = 0; i < owners.length; i++) {
-            bool ownerApproved = false;
-            for (uint256 j = 0; j < newTransaction.approval.length; j++) {
-                if (
-                    newTransaction.approval[j].owner == owners[i] &&
-                    newTransaction.approval[j].vote
-                ) {
-                    ownerApproved = true;
-                    break;
-                }
-            }
-            if (!ownerApproved) {
-                allApproved = false;
-                break;
-            }
-        }
-
-        if (allApproved) {
-            if (newTransaction.token == address(0)) {
-                _transfer(newTransaction);
-            } else {
-                _transferERC20(newTransaction);
-            }
-        }
-
-        return true;
-    }
-
-    function proposeOwner(address newOwner) public onlyOwner returns (bool) {
-        for (uint256 i = 0; i < owners.length; i++) {
-            if (owners[i] == newOwner) {
-                revert("Address is already an owner");
-            }
-        }
-
-        proposalCounter++;
-
-        Proposal storage newProposal = proposals.push();
-        newProposal.id = proposalCounter;
-        newProposal.newOwner = newOwner;
-        newProposal.timestamp = block.timestamp;
-        newProposal.votes.push(OwnerVote({owner: msg.sender, vote: true}));
-
-        return true;
-    }
-
-    function approveOwner(uint256 proposalId) public onlyOwner returns (bool) {
-        bool proposalFound = false;
-        uint256 proposalIndex;
-        for (uint256 i = 0; i < proposals.length; i++) {
-            if (proposals[i].id == proposalId) {
-                proposalFound = true;
-                proposalIndex = i;
-                break;
-            }
-        }
-        require(proposalFound, "Proposal not found");
-
-        Proposal storage proposal = proposals[proposalIndex];
-
-        bool alreadyApproved = false;
-        for (uint256 j = 0; j < proposal.votes.length; j++) {
-            if (proposal.votes[j].owner == msg.sender) {
-                alreadyApproved = true;
-                break;
-            }
-        }
-        require(!alreadyApproved, "Owner has already approved this proposal");
-
-        proposal.votes.push(OwnerVote({owner: msg.sender, vote: true}));
-
-        bool allApproved = true;
-        for (uint256 k = 0; k < owners.length; k++) {
-            bool ownerApproved = false;
-            for (uint256 l = 0; l < proposal.votes.length; l++) {
-                if (
-                    proposal.votes[l].owner == owners[k] &&
-                    proposal.votes[l].vote
-                ) {
-                    ownerApproved = true;
-                    break;
-                }
-            }
-            if (!ownerApproved) {
-                allApproved = false;
-                break;
-            }
-        }
-
-        if (allApproved) {
-            proposals[proposalIndex] = proposals[proposals.length - 1];
-            proposals.pop();
-
-            owners.push(proposal.newOwner);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    function addFactory(
-        string memory _name,
-        address factoryAddress,
-        address baseFactoryCurrency
-    ) public payable returns (bool) {
-        require(
-            factories[_name].at != address(0),
-            "Factory with that name already exists!"
-        );
-
-        factories[_name] = Factory({
-            at: factoryAddress,
-            wth: baseFactoryCurrency
-        });
-
-        return true;
-    }
-
-    function getLatestPrice() public view returns (int) {
-        (, int price, , , ) = priceFeed.latestRoundData();
-        return price;
-    }
-
     function getPairForTokens(
         address tokenA,
         string memory _name
@@ -229,44 +84,6 @@ contract MultiSig {
         Factory storage currentFactory = factories[_name];
         IV2Factory factory = IV2Factory(currentFactory.at);
         return factory.getPair(tokenA, currentFactory.wth);
-    }
-
-    function convertUsdToTokenWei(
-        address token,
-        uint256 usdAmount,
-        string memory factory
-    ) public view returns (uint256) {
-        address pairAddress = getPairForTokens(token, factory);
-        require(pairAddress != address(0), "Pair not found");
-
-        ITokenPairV2 pair = ITokenPairV2(pairAddress);
-        (address tokenReserve, address stablecoinReserve) = getTokenReserves(
-            pair,
-            token
-        );
-
-        (
-            uint112 tokenReserveAmount,
-            uint112 stablecoinReserveAmount
-        ) = getReserveAmounts(pair, tokenReserve);
-
-        uint8 tokenDecimals = IERC20(tokenReserve).decimals();
-        uint8 stablecoinDecimals = IERC20(stablecoinReserve).decimals();
-
-        uint256 tokenPriceInUsd = calculatePriceInUsd(
-            tokenReserveAmount,
-            stablecoinReserveAmount,
-            tokenDecimals,
-            stablecoinDecimals
-        );
-
-        uint256 tokenAmountInWei = calculateTokenAmount(
-            usdAmount,
-            tokenPriceInUsd,
-            tokenDecimals
-        );
-
-        return tokenAmountInWei;
     }
 
     function getTokenReserves(
@@ -328,6 +145,11 @@ contract MultiSig {
         return etherAmount;
     }
 
+    function getLatestPrice() public view returns (int) {
+        (, int price, , , ) = priceFeed.latestRoundData();
+        return price;
+    }
+
     function getBalanceInUSD() public view returns (uint256) {
         uint256 balanceInWei = address(this).balance;
         int256 ethToUsdPrice = getLatestPrice();
@@ -338,23 +160,354 @@ contract MultiSig {
         return balanceInUSD;
     }
 
-    function _transfer(Transaction storage process) internal returns (bool) {
-        (bool success, ) = process.to.call{value: process.amount}("");
-        require(success, "Transfer failed");
-        process.state = true;
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+
+    // Function to get the pair address from a specific factory
+    function getPairAddress(
+        address tokenA,
+        address tokenB,
+        string memory factoryName
+    ) public view returns (address pairAddress) {
+        return IV2Factory(factories[factoryName].at).getPair(tokenA, tokenB);
+    }
+
+    function convertUsdToTokenWei(
+        address token,
+        uint256 usdAmount,
+        string memory factory
+    ) public view returns (uint256) {
+        address pairAddress = getPairForTokens(token, factory);
+        require(pairAddress != address(0), "Pair not found");
+
+        ITokenPairV2 pair = ITokenPairV2(pairAddress);
+        (address tokenReserve, address stablecoinReserve) = getTokenReserves(
+            pair,
+            token
+        );
+
+        (
+            uint112 tokenReserveAmount,
+            uint112 stablecoinReserveAmount
+        ) = getReserveAmounts(pair, tokenReserve);
+
+        uint8 tokenDecimals = IERC20(tokenReserve).decimals();
+        uint8 stablecoinDecimals = IERC20(stablecoinReserve).decimals();
+
+        uint256 tokenPriceInUsd = calculatePriceInUsd(
+            tokenReserveAmount,
+            stablecoinReserveAmount,
+            tokenDecimals,
+            stablecoinDecimals
+        );
+
+        uint256 tokenAmountInWei = calculateTokenAmount(
+            usdAmount,
+            tokenPriceInUsd,
+            tokenDecimals
+        );
+
+        return tokenAmountInWei;
+    }
+
+    // Helper function to convert Ether amount from wei to USD
+    function convertWeiToUsd(
+        uint256 amountInWei
+    ) public view returns (uint256) {
+        int256 ethToUsdPrice = getLatestPrice();
+        require(ethToUsdPrice > 0, "Invalid ETH/USD price");
+        return (amountInWei * uint256(ethToUsdPrice)) / 1e18;
+    }
+
+    // Helper function to convert ERC20 token amount to USD
+    function convertTokenToUsd(
+        address token,
+        uint256 amount,
+        string memory factory
+    ) public view returns (uint256) {
+        address pairAddress = getPairForTokens(token, factory);
+        require(pairAddress != address(0), "Pair not found");
+
+        ITokenPairV2 pair = ITokenPairV2(pairAddress);
+        (address tokenReserve, address stablecoinReserve) = getTokenReserves(
+            pair,
+            token
+        );
+        (
+            uint112 tokenReserveAmount,
+            uint112 stablecoinReserveAmount
+        ) = getReserveAmounts(pair, tokenReserve);
+
+        uint8 tokenDecimals = IERC20(tokenReserve).decimals();
+        uint8 stablecoinDecimals = IERC20(stablecoinReserve).decimals();
+
+        uint256 tokenPriceInUsd = calculatePriceInUsd(
+            tokenReserveAmount,
+            stablecoinReserveAmount,
+            tokenDecimals,
+            stablecoinDecimals
+        );
+
+        return (amount * tokenPriceInUsd) / 10 ** tokenDecimals;
+    }
+
+    // Function to propose changes to maxDailyTransactions and maxTransactionAmountUSD
+    function proposeSettingsChange(
+        uint256 newMaxDailyTransactions,
+        uint256 newMaxTransactionAmountUSD,
+        bool newIsMaxDailyTransactionsEnabled,
+        bool newIsMaxTransactionAmountEnabled
+    ) public onlyOwner returns (uint256 proposalId) {
+        settingsProposalNonce++;
+        proposalId = settingsProposalNonce;
+        SettingsProposal storage proposal = settingsProposals[proposalId];
+        proposal.maxDailyTransactions = newMaxDailyTransactions;
+        proposal.maxTransactionAmountUSD = newMaxTransactionAmountUSD;
+        proposal
+            .isMaxDailyTransactionsEnabled = newIsMaxDailyTransactionsEnabled;
+        proposal
+            .isMaxTransactionAmountEnabled = newIsMaxTransactionAmountEnabled;
+        proposal.approvals.push(msg.sender);
+        proposal.executed = false;
+        approveSettingsChange(proposalId); // Auto approve the proposal for the proposer
+    }
+
+    function approveSettingsChange(
+        uint256 proposalId
+    ) public onlyOwner returns (bool) {
+        SettingsProposal storage proposal = settingsProposals[proposalId];
+        require(!proposal.executed, "Proposal already executed");
+
+        for (uint256 i = 0; i < proposal.approvals.length; i++) {
+            require(
+                proposal.approvals[i] != msg.sender,
+                "Owner has already approved this proposal"
+            );
+        }
+
+        proposal.approvals.push(msg.sender);
+
+        if (proposal.approvals.length == owners.length) {
+            maxDailyTransactions = proposal.maxDailyTransactions;
+            maxTransactionAmountUSD = proposal.maxTransactionAmountUSD;
+            isMaxDailyTransactionsEnabled = proposal
+                .isMaxDailyTransactionsEnabled;
+            isMaxTransactionAmountEnabled = proposal
+                .isMaxTransactionAmountEnabled;
+
+            proposal.executed = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    function proposePayment(
+        uint256 amount,
+        address to,
+        address token
+    )
+        public
+        onlyOwner
+        withinDailyLimit
+        withinTransactionAmountLimit(amount)
+        returns (bool)
+    {
+        nonce++;
+        Transaction storage newTransaction = transactions[nonce];
+        newTransaction.amount = amount;
+        newTransaction.to = to;
+        newTransaction.state = false;
+        newTransaction.token = token;
+        newTransaction.approval.push(
+            OwnerVote({owner: msg.sender, vote: true})
+        );
+        return true;
+    }
+
+    function approvePayment(uint256 _nonce) public onlyOwner returns (bool) {
+        Transaction storage newTransaction = transactions[_nonce];
+
+        bool alreadyApproved = false;
+        for (uint256 i = 0; i < newTransaction.approval.length; i++) {
+            if (newTransaction.approval[i].owner == msg.sender) {
+                alreadyApproved = true;
+                break;
+            }
+        }
+        require(
+            !alreadyApproved,
+            "Owner has already approved this transaction"
+        );
+
+        newTransaction.approval.push(
+            OwnerVote({owner: msg.sender, vote: true})
+        );
+
+        bool allApproved = true;
+        for (uint256 i = 0; i < owners.length; i++) {
+            bool ownerApproved = false;
+            for (uint256 j = 0; j < newTransaction.approval.length; j++) {
+                if (
+                    newTransaction.approval[j].owner == owners[i] &&
+                    newTransaction.approval[j].vote
+                ) {
+                    ownerApproved = true;
+                    break;
+                }
+            }
+            if (!ownerApproved) {
+                allApproved = false;
+                break;
+            }
+        }
+
+        if (allApproved) {
+            if (newTransaction.token == address(0)) {
+                _transfer(newTransaction);
+            } else {
+                _transferERC20(newTransaction);
+            }
+        }
 
         return true;
     }
 
-    function _transferERC20(
-        Transaction storage process
-    ) internal returns (bool) {
-        IERC20 tokenContract = IERC20(process.token);
-        require(
-            tokenContract.transfer(process.to, process.amount),
-            "ERC20 transfer failed"
+    function proposeNftTransfer(
+        address nftContract,
+        address to,
+        uint256 tokenId
+    ) public onlyOwner withinDailyLimit returns (bool) {
+        nftNonce++;
+        Transaction storage newTransaction = nftTransactions[nftNonce];
+        newTransaction.amount = tokenId;
+        newTransaction.to = to;
+        newTransaction.state = false;
+        newTransaction.token = nftContract;
+        newTransaction.approval.push(
+            OwnerVote({owner: msg.sender, vote: true})
         );
-        process.state = true;
+        return true;
+    }
+
+    function approveNftTransfer(
+        uint256 _nonce
+    ) public onlyOwner returns (bool) {
+        Transaction storage newTransaction = nftTransactions[_nonce];
+
+        bool alreadyApproved = false;
+        for (uint256 i = 0; i < newTransaction.approval.length; i++) {
+            if (newTransaction.approval[i].owner == msg.sender) {
+                alreadyApproved = true;
+                break;
+            }
+        }
+        require(
+            !alreadyApproved,
+            "Owner has already approved this transaction"
+        );
+
+        newTransaction.approval.push(
+            OwnerVote({owner: msg.sender, vote: true})
+        );
+
+        bool allApproved = true;
+        for (uint256 i = 0; i < owners.length; i++) {
+            bool ownerApproved = false;
+            for (uint256 j = 0; j < newTransaction.approval.length; j++) {
+                if (
+                    newTransaction.approval[j].owner == owners[i] &&
+                    newTransaction.approval[j].vote
+                ) {
+                    ownerApproved = true;
+                    break;
+                }
+            }
+            if (!ownerApproved) {
+                allApproved = false;
+                break;
+            }
+        }
+        bool result = false;
+        if (allApproved) {
+            result = _transferNFT(
+                newTransaction.token,
+                newTransaction.to,
+                newTransaction.amount
+            );
+        }
+
+        return result;
+    }
+
+    function proposeOwner(address newOwner) public onlyOwner returns (bool) {
+        for (uint256 i = 0; i < owners.length; i++) {
+            if (owners[i] == newOwner) {
+                revert("Address is already an owner");
+            }
+        }
+
+        proposalCounter++;
+
+        Proposal storage newProposal = proposals.push();
+        newProposal.id = proposalCounter;
+        newProposal.newOwner = newOwner;
+        newProposal.timestamp = block.timestamp;
+        newProposal.votes.push(OwnerVote({owner: msg.sender, vote: true}));
+
+        return true;
+    }
+
+    function approveOwner(uint256 proposalId) public onlyOwner returns (bool) {
+        bool proposalFound = false;
+        uint256 proposalIndex;
+        for (uint256 i = 0; i < proposals.length; i++) {
+            if (proposals[i].id == proposalId) {
+                proposalFound = true;
+                proposalIndex = i;
+                break;
+            }
+        }
+        require(proposalFound, "Proposal not found");
+
+        Proposal storage proposal = proposals[proposalIndex];
+
+        for (uint256 i = 0; i < proposal.votes.length; i++) {
+            require(
+                proposal.votes[i].owner != msg.sender,
+                "Owner has already voted"
+            );
+        }
+
+        proposal.votes.push(OwnerVote({owner: msg.sender, vote: true}));
+
+        if (proposal.votes.length == owners.length) {
+            owners.push(proposal.newOwner);
+        }
+
+        return true;
+    }
+
+    function removeOwner(
+        address ownerToRemove
+    ) public onlyOwner returns (bool) {
+        require(owners.length > 1, "Cannot remove the last owner");
+
+        bool ownerFound = false;
+        uint256 ownerIndex;
+
+        for (uint256 i = 0; i < owners.length; i++) {
+            if (owners[i] == ownerToRemove) {
+                ownerFound = true;
+                ownerIndex = i;
+                break;
+            }
+        }
+        require(ownerFound, "Owner not found");
+
+        owners[ownerIndex] = owners[owners.length - 1];
+        owners.pop();
 
         return true;
     }
@@ -367,8 +520,60 @@ contract MultiSig {
         emit Received(msg.sender, msg.value);
     }
 
-    function getBalance() public view returns (uint256) {
-        return address(this).balance;
+    function _transfer(Transaction storage t) internal {
+        require(address(this).balance >= t.amount, "Insufficient balance");
+
+        if (isMaxTransactionAmountEnabled) {
+            uint256 amountInUsd = convertWeiToUsd(t.amount);
+
+            require(
+                amountInUsd <= maxTransactionAmountUSD,
+                "Transaction amount exceeds max allowed USD limit"
+            );
+        }
+
+        (bool sent, ) = t.to.call{value: t.amount}("");
+        require(sent, "Failed to send Ether");
+
+        t.state = true;
+    }
+
+    function _transferERC20(Transaction storage t) internal {
+        require(t.token != address(0), "Invalid token address");
+        IERC20 token = IERC20(t.token);
+
+        uint256 tokenBalance = token.balanceOf(address(this));
+        require(tokenBalance >= t.amount, "Insufficient token balance");
+
+        if (isMaxTransactionAmountEnabled) {
+            uint256 amountInUsd = convertTokenToUsd(
+                t.token,
+                t.amount,
+                "defaultFactory"
+            );
+
+            require(
+                amountInUsd <= maxTransactionAmountUSD,
+                "Transaction amount exceeds max allowed USD limit"
+            );
+        }
+
+        require(token.transfer(t.to, t.amount), "Token transfer failed");
+
+        t.state = true;
+    }
+
+    function _transferNFT(
+        address nftContract,
+        address to,
+        uint256 tokenId
+    ) internal withinDailyLimit returns (bool) {
+        IERC721 nft = IERC721(nftContract);
+        require(nft.ownerOf(tokenId) == address(this), "Not the NFT owner");
+
+        nft.safeTransferFrom(address(this), to, tokenId);
+
+        return true;
     }
 
     modifier onlyOwner() {
@@ -380,6 +585,35 @@ contract MultiSig {
             }
         }
         require(isOwner, "Not authorized");
+        _;
+    }
+
+    modifier withinDailyLimit() {
+        if (isMaxDailyTransactionsEnabled) {
+            uint256 currentDay = block.timestamp / 1 days;
+
+            if (lastTransactionDay != currentDay) {
+                dailyTransactionCount[currentDay] = 0;
+                lastTransactionDay = currentDay;
+            }
+
+            require(
+                dailyTransactionCount[currentDay] < maxDailyTransactions,
+                "Max daily transaction limit reached"
+            );
+
+            dailyTransactionCount[currentDay]++;
+        }
+        _;
+    }
+
+    modifier withinTransactionAmountLimit(uint256 amountInUSD) {
+        if (isMaxTransactionAmountEnabled) {
+            require(
+                amountInUSD <= maxTransactionAmountUSD,
+                "Transaction exceeds max amount limit"
+            );
+        }
         _;
     }
 }
