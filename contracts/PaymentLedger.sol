@@ -12,6 +12,7 @@ import "../structrues/Proposal.sol";
 import "../structrues/Transaction.sol";
 import "../structrues/SettingProposal.sol";
 import "../structrues/SmartContractToken.sol";
+import "../structrues/transaction_setting.sol";
 
 contract PaymentLedger {
     address[] private owners;
@@ -19,8 +20,8 @@ contract PaymentLedger {
     mapping(uint256 => Transaction) private nftTransactions;
     // Mapping to track settings proposals
     mapping(uint256 => SettingsProposal) public settingsProposals;
-    SmartContractToken[] whitelistedERC20;
-    address[] whitelistedERC721;
+    SmartContractToken[] private whitelistedERC20;
+    address[] private whitelistedERC721;
 
     Proposal[] private proposals;
     uint256 public nonce;
@@ -44,6 +45,7 @@ contract PaymentLedger {
         address[] memory _owners,
         SmartContractToken[] memory _whitelistedERC20,
         address[] memory _whitelistedERC721,
+        TransactionSettings memory transactionSettings,
         address _priceFeed,
         address _factory,
         address _networkWrappedToken,
@@ -52,7 +54,25 @@ contract PaymentLedger {
         require(_owners.length > 0, "Owners required");
         name = _name;
         owners = _owners;
+        initializeDefaultTokens(_whitelistedERC20, _whitelistedERC721);
+        initializeTransactionSettings(
+            transactionSettings.isMaxDailyTransactionsEnabled,
+            transactionSettings.maxDailyTransactions,
+            transactionSettings.isMaxTransactionAmountEnabled,
+            transactionSettings.maxTransactionAmountUSD
+        );
+        initializePriceFeed(_priceFeed);
+        initializeDefaultFactory(
+            _factory,
+            _networkWrappedToken,
+            _defaultFactoryName
+        );
+    }
 
+    function initializeDefaultTokens(
+        SmartContractToken[] memory _whitelistedERC20,
+        address[] memory _whitelistedERC721
+    ) internal returns (bool) {
         for (uint256 i = 0; i < _whitelistedERC20.length; i++) {
             SmartContractToken memory token = _whitelistedERC20[i];
             whitelistedERC20.push(token);
@@ -61,12 +81,46 @@ contract PaymentLedger {
         for (uint256 i = 0; i < _whitelistedERC721.length; i++) {
             whitelistedERC721.push(_whitelistedERC721[i]);
         }
+        return true;
+    }
 
+    function initializeTransactionSettings(
+        bool _isMaxDailyTransactionsEnabled,
+        uint256 _maxDailyTransactions,
+        bool _isMaxTransactionAmountEnabled,
+        uint256 _maxTransactionAmountUSD
+    ) internal returns (bool) {
+        isMaxDailyTransactionsEnabled = _isMaxDailyTransactionsEnabled;
+        maxDailyTransactions = _maxDailyTransactions;
+        isMaxDailyTransactionsEnabled = _isMaxTransactionAmountEnabled;
+        maxTransactionAmountUSD = _maxTransactionAmountUSD;
+        return true;
+    }
+
+    function initializePriceFeed(address _priceFeed) internal returns (bool) {
         priceFeed = AggregatorV3Interface(_priceFeed);
+        return true;
+    }
+
+    function initializeDefaultFactory(
+        address _factory,
+        address _networkWrappedToken,
+        string memory _defaultFactoryName
+    ) internal returns (bool) {
         factories[_defaultFactoryName] = Factory({
             at: _factory,
             wth: _networkWrappedToken
         });
+        return true;
+    }
+
+    function getERC20()
+        external
+        view
+        onlyOwner
+        returns (SmartContractToken[] memory)
+    {
+        return whitelistedERC20;
     }
 
     function addWhitelistedERC20(
@@ -93,6 +147,10 @@ contract PaymentLedger {
             }
         }
         return false;
+    }
+
+    function getERC721() external view onlyOwner returns (address[] memory) {
+        return whitelistedERC721;
     }
 
     function addWhitelistedERC721(
