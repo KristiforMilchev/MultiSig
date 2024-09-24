@@ -20,6 +20,8 @@ contract DeploymentFactory {
     string private defaultFactoryName;
     IFeeService private feeService;
 
+    event LedgerCreated(address indexed ledgerAddress);
+
     constructor(
         address _feeService,
         address _priceFeed,
@@ -66,6 +68,7 @@ contract DeploymentFactory {
             defaultFactoryName
         );
 
+        emit LedgerCreated(address(ms));
         return address(ms);
     }
 
