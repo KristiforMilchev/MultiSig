@@ -114,6 +114,10 @@ contract PaymentLedger {
         return true;
     }
 
+    function getName() external view onlyOwner returns (string memory) {
+        return name;
+    }
+
     function getERC20()
         external
         view
