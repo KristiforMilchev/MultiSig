@@ -37,6 +37,23 @@ contract DeploymentFactory {
         defaultFactoryName = _defaultFactoryName;
     }
 
+    function getDefaultFactoryName()
+        external
+        view
+        onlyOwner
+        returns (string memory)
+    {
+        return defaultFactoryName;
+    }
+
+    function getPriceFeed() external view onlyOwner returns (address) {
+        return priceFeed;
+    }
+
+    function getNetworkToken() external view onlyOwner returns (address) {
+        return netowrkWrappedToken;
+    }
+
     function createLedger(
         string memory _name,
         address[] memory _owners,
