@@ -68,6 +68,10 @@ contract DeploymentFactory {
     ) public payable returns (address) {
         (uint256 feeInWei, ) = feeService.getFeeInEthAndUsd();
         require(msg.value >= feeInWei, "Insufficient registration fee");
+        require(
+            _owners.length > 0,
+            "Least one administrator should be present"
+        );
 
         TransactionSettings memory trSetting = TransactionSettings({
             isMaxDailyTransactionsEnabled: _isMaxDailyTransactionsEnabled,

@@ -28,6 +28,10 @@ if (!privateKey || !devRpcUrl) {
 }
 
 module.exports = {
+  mocha: {
+    enableTimeouts: false,
+    before_timeout: 120000, // Here is 2min but can be whatever timeout is suitable for you.
+  },
   networks: {
     development: {
       provider: () => new HDWalletProvider(privateKey, devRpcUrl),
