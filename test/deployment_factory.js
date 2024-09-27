@@ -1,6 +1,5 @@
 const DeploymentFactory = artifacts.require("DeploymentFactory");
-const FeeService = artifacts.require("FeeServiceMock");
-
+const FeeServiceMock = require("./mocks/fee_service_mock"); // Adjust the path accordingly
 /*
  * uncomment accounts to access the test accounts made available by the
  * Ethereum client
@@ -27,8 +26,8 @@ contract("DeploymentFactory", function (accounts) {
   it("Should create new ledger, no rate limit, no transaction limit, no initial assets", async function () {});
   it("Should fail to create a ledger if least 1 administrator is provided.", async function () {});
   it("Should allow to withdraw funds for owner.", async function () {
-    let feeService = await FeeService.deployed();
-    let res = await feeService.getFeeInEthAndUsd();
+    let feeService = new FeeServiceMock();
+    let [feeInWei, _] = feeService.getFeeInEthAndUsd();
 
     await instance.createLedger(
       "Test Ledger",
@@ -39,7 +38,7 @@ contract("DeploymentFactory", function (accounts) {
       0,
       false,
       0,
-      { value: res.feeInWei }
+      { value: feeInWei }
     );
 
     const receipt = await instance.withdraw({ from: owner });
