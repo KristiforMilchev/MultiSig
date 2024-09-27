@@ -1,19 +1,29 @@
-const HDWalletProvider = require('@truffle/hdwallet-provider');
-require('dotenv').config();
+const HDWalletProvider = require("@truffle/hdwallet-provider");
+require("dotenv").config();
 
 //Initially you will have to create an ENV file with the following contents
-//PRIVATE_KEY=9b03326a56edf91ed670fc2525e4018e7b60aab635cf80460fa4bbb6f70ca2c8
+//Important v0.2 due to testing requirments we need to have more than one account, you can do that either by
+//providing a list of wallets separated by comma or a mnemonic seed. I prefer to use a list of private keys so
+//the default is set to be a list for me as it makes adding testing accounts easier in the future.
+//PRIVATE_KEY=9b03326a56edf91ed670fc2525e4018e7b60aab635cf80460fa4bbb6f70ca2c8,9b03326a56edf91ed670fc2525e4018e7b60aab635cf80460fa4bbb6f70caa18 -- Example
+
 //DEV_RPC_URL=https://rpc.blockcert.net only if using my testnet otherwise your own rpc.
 
-
-const privateKey = process.env.PRIVATE_KEY; // Private key of the wallet
-const devRpcUrl = process.env.DEV_RPC_URL;   // RPC endpoint of your development server
+let privateKey = process.env.PRIVATE_KEY; // Private key of the wallet
+const devRpcUrl = process.env.DEV_RPC_URL; // RPC endpoint of your development server
 
 console.log(privateKey);
 
+if (privateKey.includes(",")) {
+  privateKey = privateKey.split(",").map((key) => key.trim());
+} else {
+  privateKey = privateKey.trim();
+}
 
 if (!privateKey || !devRpcUrl) {
-  console.error("Error: Environment variables PRIVATE_KEY and DEV_RPC_URL are required.");
+  console.error(
+    "Error: Environment variables PRIVATE_KEY and DEV_RPC_URL are required."
+  );
   process.exit(1);
 }
 
@@ -32,9 +42,9 @@ module.exports = {
       settings: {
         optimizer: {
           enabled: true,
-          runs: 200
+          runs: 200,
         },
-      }
-    }
-  }
+      },
+    },
+  },
 };
