@@ -20,6 +20,8 @@ contract DeploymentFactory {
     string private defaultFactoryName;
     IFeeService private feeService;
 
+    event EmptyBalance();
+    event BalanceTrasfered(uint256 balance);
     event LedgerCreated(address indexed ledgerAddress);
 
     constructor(
@@ -90,7 +92,13 @@ contract DeploymentFactory {
     }
 
     function withdraw() public onlyOwner {
+        if (address(this).balance == 0) {
+            emit EmptyBalance();
+            return;
+        }
+        uint256 currentBalance = address(this).balance;
         payable(owner).transfer(address(this).balance);
+        emit BalanceTrasfered(currentBalance);
     }
 
     modifier onlyOwner() {
