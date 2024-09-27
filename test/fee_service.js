@@ -39,4 +39,11 @@ contract("FeeService", function (accounts) {
       "Fee in USD should be 20 USD in Wei units"
     );
   });
+
+  it("should deny others than the deployer to update fees", async () => {
+    await feeService.changeTax(20, { from: accounts[1] });
+    assert.fail(
+      "Expected reverted, other accounts than owner shouldn't be able to update fees!"
+    );
+  });
 });
