@@ -203,6 +203,18 @@ contract PaymentLedger {
         return transactionList;
     }
 
+    function getTransactionById(
+        uint256 transactionId
+    ) public view onlyOwner returns (Transaction memory) {
+        return transactions[transactionId];
+    }
+
+    function getNftTransactionById(
+        uint256 nftTransactionId
+    ) public view onlyOwner returns (Transaction memory) {
+        return nftTransactions[nftTransactionId];
+    }
+
     function getPairForTokens(
         address tokenA,
         string memory _name
@@ -436,6 +448,12 @@ contract PaymentLedger {
         withinTransactionAmountLimit(amount)
         returns (bool)
     {
+        if (isMaxTransactionAmountEnabled) {
+            require(
+                maxTransactionAmountUSD > amount,
+                "Transaction amount exceeds max allowed limit!"
+            );
+        }
         nonce++;
         Transaction storage newTransaction = transactions[nonce];
         newTransaction.amount = amount;
@@ -449,6 +467,8 @@ contract PaymentLedger {
     }
 
     function approvePayment(uint256 _nonce) public onlyOwner returns (bool) {
+        require(!isTransactionEmpty(_nonce), "Transaction not found");
+
         Transaction storage newTransaction = transactions[_nonce];
 
         bool alreadyApproved = false;
@@ -658,6 +678,17 @@ contract PaymentLedger {
         require(sent, "Failed to send Ether");
 
         t.state = true;
+    }
+
+    function isTransactionEmpty(uint256 _nonce) internal view returns (bool) {
+        Transaction storage txn = transactions[_nonce];
+        return
+            txn.amount == 0 &&
+            txn.to == address(0) &&
+            txn.hash == bytes32(0) &&
+            txn.approval.length == 0 &&
+            txn.state == false &&
+            txn.token == address(0);
     }
 
     function _transferERC20(Transaction storage t) internal {

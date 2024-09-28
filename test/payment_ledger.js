@@ -117,4 +117,153 @@ contract("PaymentLedger", (accounts) => {
       );
     });
   });
+  describe("Transaction Proposals", () => {
+    it("should propose a payment", async () => {
+      nonce = await getNonce(accounts[0]);
+      await paymentLedger.proposePayment(
+        1000,
+        owner2,
+        "0x0000000000000000000000000000000000000000",
+        { nonce: nonce }
+      );
+      const transactions = await paymentLedger.getTransactionHistory();
+      assert.equal(transactions.length, 1);
+      assert.equal(transactions[0].amount.toString(), "1000");
+      assert.equal(transactions[0].to, owner2);
+    });
+
+    it("should approve a payment", async () => {
+      nonce = await getNonce(owner1);
+      await paymentLedger.proposePayment(
+        1000,
+        owner2,
+        "0x0000000000000000000000000000000000000000",
+        {
+          nonce: nonce,
+        }
+      );
+
+      const nonceForOwner2 = await getNonce(owner2);
+      await paymentLedger.approvePayment(1, {
+        from: owner2,
+        nonce: nonceForOwner2,
+      });
+
+      const transaction = await paymentLedger.getTransactionById(1);
+      assert.equal(transaction.approval.length, 2);
+      const allVotesAreTrue = transaction.approval.every(
+        (approvalObj) => approvalObj.vote === true
+      );
+      assert.isTrue(
+        allVotesAreTrue,
+        "Not all votes are true in the approval array"
+      );
+    });
+
+    it("should revert if an owner tries to approve the same payment twice", async () => {
+      nonce = await getNonce(owner1);
+      await paymentLedger.proposePayment(
+        1000,
+        owner2,
+        "0x0000000000000000000000000000000000000000",
+        {
+          nonce: nonce,
+        }
+      );
+      const paymentId = 2;
+
+      try {
+        nonce = await getNonce(owner1);
+
+        await paymentLedger.approvePayment(paymentId, {
+          from: owner1,
+          nonce: nonce,
+        });
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(
+          error.message.includes("Owner has already approved this transaction")
+        );
+      }
+    });
+
+    it("should revert when approving a non-existent payment", async () => {
+      try {
+        nonce = await getNonce(owner1);
+        await paymentLedger.approvePayment(9999, {
+          from: owner1,
+          nonce: nonce,
+        });
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(error.message.includes("Transaction not found"));
+      }
+    });
+
+    it("should revert when the transaction amount exceeds the max limit", async () => {
+      try {
+        nonce = await getNonce(owner1);
+        await paymentLedger.proposePayment(
+          20000,
+          owner2,
+          "0x0000000000000000000000000000000000000000",
+          {
+            nonce: nonce,
+          }
+        );
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(
+          error.message.includes("Transaction exceeds max amount limit")
+        );
+      }
+    });
+  });
+
+  describe("NFT Transfer Proposals", () => {
+    it("should propose an NFT transfer", async () => {
+      nonce = await getNonce(owner1);
+      await mockERC721.mint(paymentLedger.address, 1, {
+        nonce: nonce,
+      });
+      nonce = await getNonce(owner1);
+
+      await paymentLedger.proposeNftTransfer(mockERC721.address, owner2, 1, {
+        nonce: nonce,
+      });
+      const nftTransaction = await paymentLedger.getNftTransactionById(1);
+      assert.equal(nftTransaction.to, owner2);
+      assert.equal(nftTransaction.amount.toString(), "1");
+    });
+
+    it("should approve an NFT transfer", async () => {
+      const owner2Nonce = await getNonce(owner2);
+      await paymentLedger.approveNftTransfer(1, {
+        from: owner2,
+        nonce: owner2Nonce,
+      });
+      nftTransaction = await paymentLedger.getNftTransactionById(1);
+      console.log(nftTransaction);
+      assert.equal(nftTransaction.approval.length, 2);
+      const allVotesAreTrue = nftTransaction.approval.every(
+        (approvalObj) => approvalObj.vote === true
+      );
+      assert.isTrue(allVotesAreTrue, "Approving NFT Trasnfer failed");
+    });
+
+    it("should revert if an owner tries to approve the same NFT transfer twice", async () => {
+      try {
+        nonce = await getNonce(owner1);
+        await paymentLedger.approveNftTransfer(1, {
+          from: owner1,
+          nonce: nonce,
+        });
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(
+          error.message.includes("Owner has already approved this transaction")
+        );
+      }
+    });
+  });
 });
