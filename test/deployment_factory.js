@@ -1,5 +1,7 @@
 const DeploymentFactory = artifacts.require("DeploymentFactory");
 const FeeServiceMock = require("./mocks/fee_service_mock"); // Adjust the path accordingly
+const { getNonce } = require("./../utils/helpers");
+
 /*
  * uncomment accounts to access the test accounts made available by the
  * Ethereum client
@@ -33,12 +35,6 @@ contract("DeploymentFactory", function (accounts) {
       "PkSwap"
     );
   });
-
-  async function getNonce(account) {
-    let currentMonce = await web3.eth.getTransactionCount(account);
-    console.log(currentMonce);
-    return currentMonce;
-  }
 
   it("should assert true", async function () {
     return assert.isTrue(instance != null && instance != undefined);
