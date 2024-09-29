@@ -1,13 +1,11 @@
 const PaymentLedger = artifacts.require("PaymentLedger");
+const OwnerManager = artifacts.require("OwnerManager");
 const MockERC20 = artifacts.require("MockERC20");
 const MockERC721 = artifacts.require("MockERC721");
-const {
-  getNonce,
-  getNextNonce,
-  updateNonceAfterDeployment,
-} = require("./../utils/helpers");
+const { getNonce, getAddress } = require("./../utils/helpers");
 contract("PaymentLedger", (accounts) => {
   let paymentLedger;
+  let ownerManager;
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
   const initialMaxDailyTransactions = 5;
@@ -21,10 +19,10 @@ contract("PaymentLedger", (accounts) => {
   before(async () => {
     mockERC20 = await MockERC20.new("Mock Token", "MTK", 18);
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
-
+    let deployedOwnerManager = await OwnerManager.new(owners);
     paymentLedger = await PaymentLedger.new(
       "Payment Ledger",
-      owners,
+      deployedOwnerManager.address,
       [[mockERC20.address, 18]],
       [mockERC721.address],
       {
@@ -94,7 +92,6 @@ contract("PaymentLedger", (accounts) => {
         await paymentLedger.addWhitelistedERC721(mockERC721.address, {
           nonce: nonce,
         });
-        console.log("created");
         assert.fail("Expected revert not received");
       } catch (error) {
         assert.isTrue(error.message.includes("Token already whitelisted"));
@@ -243,7 +240,6 @@ contract("PaymentLedger", (accounts) => {
         nonce: owner2Nonce,
       });
       nftTransaction = await paymentLedger.getNftTransactionById(1);
-      console.log(nftTransaction);
       assert.equal(nftTransaction.approval.length, 2);
       const allVotesAreTrue = nftTransaction.approval.every(
         (approvalObj) => approvalObj.vote === true
@@ -278,7 +274,6 @@ contract("PaymentLedger", (accounts) => {
           nonce: nonce,
         }
       );
-      console.log(transaction.logs[0].args.id);
       const proposalId = transaction.logs[0].args.id;
 
       const settingsProposal = await paymentLedger.getSettingProposalById(
@@ -309,7 +304,6 @@ contract("PaymentLedger", (accounts) => {
       const settingsProposal = await paymentLedger.getSettingProposalById(
         proposalId
       );
-      console.log(settingsProposal);
       assert.equal(
         settingsProposal.approvals.length,
         2,
@@ -346,7 +340,6 @@ contract("PaymentLedger", (accounts) => {
           proposalId
         );
         nonce = await getNonce(owner1);
-        console.log(settingsProposal);
 
         await paymentLedger.approveSettingsChange(proposalId, {
           from: owner1,
@@ -355,6 +348,144 @@ contract("PaymentLedger", (accounts) => {
         assert.fail("Expected revert not received");
       } catch (error) {
         assert.isTrue(error.message.includes("Proposal already executed"));
+      }
+    });
+  });
+
+  describe("Owner Management", () => {
+    it("should propose a new owner", async () => {
+      nonce = await getNonce(owner1);
+      const newOwnerAddress = accounts[3];
+      const managerAddress = await paymentLedger.getOwnerManager();
+      const manager = await OwnerManager.at(managerAddress);
+
+      const transaction = await manager.proposeOwner(newOwnerAddress, {
+        nonce: nonce,
+      });
+      const proposalId = transaction.logs[0].args.id;
+      const proposal = await manager.getOwnerProposal(proposalId);
+      assert.equal(proposal.newOwner, newOwnerAddress);
+    });
+    it("should approve a new owner", async () => {
+      const managerAddress = await paymentLedger.getOwnerManager();
+      const manager = await OwnerManager.at(managerAddress);
+
+      nonce = await getNonce(owner1);
+      const newOwnerAddress = accounts[3];
+      const transaction = await manager.proposeOwner(newOwnerAddress, {
+        nonce: nonce,
+      });
+      const proposalId = transaction.logs[0].args.id;
+      const owner2Nonce = await getNonce(owner2);
+      await manager.approveOwner(proposalId, {
+        from: owner2,
+        nonce: owner2Nonce,
+      });
+      const proposal = await manager.getOwnerProposal(proposalId);
+      assert.equal(proposal.votes.length, 2);
+    });
+
+    it("should revert if a non-owner tries to approve a new owner", async () => {
+      const managerAddress = await paymentLedger.getOwnerManager();
+      const manager = await OwnerManager.at(managerAddress);
+
+      nonce = await getNonce(owner1);
+      const newOwnerAddress = accounts[3];
+      const transaction = await manager.proposeOwner(newOwnerAddress, {
+        nonce: nonce,
+      });
+      const proposalId = transaction.logs[0].args.id;
+      try {
+        const nonOwnerNonce = await getNonce(newOwnerAddress);
+        await manager.approveOwner(proposalId, {
+          from: accounts[3],
+          nonce: nonOwnerNonce,
+        });
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(error.message.includes("Not authorized"));
+      }
+    });
+    it("Should propose to remove an owner", async () => {
+      try {
+        const managerAddress = await paymentLedger.getOwnerManager();
+        const manager = await OwnerManager.at(managerAddress);
+
+        nonce = await getNonce(owner1);
+        const transaction = await manager.proposeOwnerToBeRemoved(owner3, {
+          nonce: nonce,
+        });
+        const proposalId = transaction.logs[0].args.id.toNumber();
+        const updatedOwners = await manager.getRemoveOwnerProposal(proposalId);
+        assert.equal(
+          updatedOwners.votes.length,
+          1,
+          "Failed to propose owner removal."
+        );
+      } catch (ex) {
+        assert.fail("Just Fails!");
+      }
+    });
+    it("Should propose and approve owner removal", async () => {
+      const managerAddress = await paymentLedger.getOwnerManager();
+      const manager = await OwnerManager.at(managerAddress);
+
+      nonce = await getNonce(owner1);
+      const transaction = await manager.proposeOwnerToBeRemoved(owner3, {
+        nonce: nonce,
+      });
+      const proposalId = transaction.logs[0].args.id;
+      const owner2Nonce = await getNonce(owner2);
+      await manager.approveOwnerRemove(proposalId, {
+        from: owner2,
+        nonce: owner2Nonce,
+      });
+      const updatedOwners = await manager.getRemoveOwnerProposal(proposalId);
+      assert.equal(
+        updatedOwners.votes.length,
+        2,
+        "Failed to approve request when voting for owner to be removed."
+      );
+    });
+    it("Should remove an owner", async () => {
+      const managerAddress = await paymentLedger.getOwnerManager();
+      const manager = await OwnerManager.at(managerAddress);
+
+      nonce = await getNonce(owner1);
+      const transaction = await manager.proposeOwnerToBeRemoved(owner3, {
+        nonce: nonce,
+      });
+      const proposalId = transaction.logs[0].args.id;
+      const owner2Nonce = await getNonce(owner2);
+      await manager.approveOwnerRemove(proposalId, {
+        from: owner2,
+        nonce: owner2Nonce,
+      });
+
+      await manager.getRemoveOwnerProposal(proposalId);
+      const owners = await manager.getOwners();
+      assert.equal(owners.length, 2, "Failed to propose owner removal.");
+    });
+    it("should revert when trying to remove the last owner", async () => {
+      try {
+        const managerAddress = await paymentLedger.getOwnerManager();
+        const manager = await OwnerManager.at(managerAddress);
+
+        nonce = await getNonce(owner1);
+        const transaction = await manager.proposeOwnerToBeRemoved(owner2, {
+          nonce: nonce,
+        });
+        const proposalId = transaction.logs[0].args.id;
+
+        const contractOwners = await manager.getOwners();
+        nonce = await getNonce(owner1);
+        await manager.approveOwnerRemove(proposalId, {
+          from: owner1,
+          nonce: nonce,
+        });
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(true);
       }
     });
   });
