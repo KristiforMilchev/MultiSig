@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "../interfaces/AggregatorV3.sol";
+import "../interfaces/IOwnerManager.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IERC721.sol";
 import "../interfaces/TokenPairV2.sol";
@@ -15,19 +16,18 @@ import "../structrues/SmartContractToken.sol";
 import "../structrues/transaction_setting.sol";
 
 contract PaymentLedger {
-    address[] private owners;
     mapping(uint256 => Transaction) private transactions;
     mapping(uint256 => Transaction) private nftTransactions;
-    // Mapping to track settings proposals
     mapping(uint256 => SettingsProposal) public settingsProposals;
+    IOwnerManger private ownerManager;
+
     SmartContractToken[] private whitelistedERC20;
     address[] private whitelistedERC721;
 
-    Proposal[] private proposals;
     uint256 public nonce;
     uint256 public nftNonce;
     event Received(address, uint256);
-    uint256 private proposalCounter;
+    uint256 private proposalCounter = 0;
     AggregatorV3Interface internal priceFeed;
     mapping(string => Factory) public factories;
     string private name;
@@ -37,14 +37,13 @@ contract PaymentLedger {
     bool public isMaxTransactionAmountEnabled = true;
     mapping(uint256 => uint256) private dailyTransactionCount;
     uint256 private lastTransactionDay;
-
     uint256 private settingsProposalNonce = 0;
 
     event SettingProposed(uint256 id);
 
     constructor(
         string memory _name,
-        address[] memory _owners,
+        address ownerManger,
         SmartContractToken[] memory _whitelistedERC20,
         address[] memory _whitelistedERC721,
         TransactionSettings memory transactionSettings,
@@ -53,9 +52,8 @@ contract PaymentLedger {
         address _networkWrappedToken,
         string memory _defaultFactoryName
     ) {
-        require(_owners.length > 0, "Owners required");
         name = _name;
-        owners = _owners;
+        ownerManager = IOwnerManger(ownerManger);
         initializeDefaultTokens(_whitelistedERC20, _whitelistedERC721);
         initializeTransactionSettings(
             transactionSettings.isMaxDailyTransactionsEnabled,
@@ -114,6 +112,10 @@ contract PaymentLedger {
             wth: _networkWrappedToken
         });
         return true;
+    }
+
+    function getOwnerManager() external view onlyOwner returns (IOwnerManger) {
+        return ownerManager;
     }
 
     function getName() external view onlyOwner returns (string memory) {
@@ -181,10 +183,6 @@ contract PaymentLedger {
             }
         }
         return false;
-    }
-
-    function getOwners() public view onlyOwner returns (address[] memory) {
-        return owners;
     }
 
     function getTransactionHistory()
@@ -430,7 +428,7 @@ contract PaymentLedger {
         }
 
         proposal.approvals.push(msg.sender);
-
+        address[] memory owners = ownerManager.getOwners();
         if (proposal.approvals.length == owners.length) {
             maxDailyTransactions = proposal.maxDailyTransactions;
             maxTransactionAmountUSD = proposal.maxTransactionAmountUSD;
@@ -495,6 +493,7 @@ contract PaymentLedger {
         newTransaction.approval.push(
             OwnerVote({owner: msg.sender, vote: true})
         );
+        address[] memory owners = ownerManager.getOwners();
 
         bool allApproved = true;
         for (uint256 i = 0; i < owners.length; i++) {
@@ -562,6 +561,7 @@ contract PaymentLedger {
         newTransaction.approval.push(
             OwnerVote({owner: msg.sender, vote: true})
         );
+        address[] memory owners = ownerManager.getOwners();
 
         bool allApproved = true;
         for (uint256 i = 0; i < owners.length; i++) {
@@ -590,77 +590,6 @@ contract PaymentLedger {
         }
 
         return result;
-    }
-
-    function proposeOwner(address newOwner) public onlyOwner returns (bool) {
-        for (uint256 i = 0; i < owners.length; i++) {
-            if (owners[i] == newOwner) {
-                revert("Address is already an owner");
-            }
-        }
-
-        proposalCounter++;
-
-        Proposal storage newProposal = proposals.push();
-        newProposal.id = proposalCounter;
-        newProposal.newOwner = newOwner;
-        newProposal.timestamp = block.timestamp;
-        newProposal.votes.push(OwnerVote({owner: msg.sender, vote: true}));
-
-        return true;
-    }
-
-    function approveOwner(uint256 proposalId) public onlyOwner returns (bool) {
-        bool proposalFound = false;
-        uint256 proposalIndex;
-        for (uint256 i = 0; i < proposals.length; i++) {
-            if (proposals[i].id == proposalId) {
-                proposalFound = true;
-                proposalIndex = i;
-                break;
-            }
-        }
-        require(proposalFound, "Proposal not found");
-
-        Proposal storage proposal = proposals[proposalIndex];
-
-        for (uint256 i = 0; i < proposal.votes.length; i++) {
-            require(
-                proposal.votes[i].owner != msg.sender,
-                "Owner has already voted"
-            );
-        }
-
-        proposal.votes.push(OwnerVote({owner: msg.sender, vote: true}));
-
-        if (proposal.votes.length == owners.length) {
-            owners.push(proposal.newOwner);
-        }
-
-        return true;
-    }
-
-    function removeOwner(
-        address ownerToRemove
-    ) public onlyOwner returns (bool) {
-        require(owners.length > 1, "Cannot remove the last owner");
-
-        bool ownerFound = false;
-        uint256 ownerIndex;
-
-        for (uint256 i = 0; i < owners.length; i++) {
-            if (owners[i] == ownerToRemove) {
-                ownerFound = true;
-                ownerIndex = i;
-                break;
-            }
-        }
-        require(ownerFound, "Owner not found");
-
-        owners[ownerIndex] = owners[owners.length - 1];
-        owners.pop();
-
-        return true;
     }
 
     receive() external payable {
@@ -740,6 +669,7 @@ contract PaymentLedger {
 
     modifier onlyOwner() {
         bool isOwner = false;
+        address[] memory owners = ownerManager.getOwners();
         for (uint256 i = 0; i < owners.length; i++) {
             if (owners[i] == msg.sender) {
                 isOwner = true;
