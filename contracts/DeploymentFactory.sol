@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "./PaymentLedger.sol";
+import "../interfaces/IOwnerManager.sol";
 import "../structrues/SmartContractToken.sol";
 import "../structrues/transaction_setting.sol";
 
@@ -39,26 +40,9 @@ contract DeploymentFactory {
         defaultFactoryName = _defaultFactoryName;
     }
 
-    function getDefaultFactoryName()
-        external
-        view
-        onlyOwner
-        returns (string memory)
-    {
-        return defaultFactoryName;
-    }
-
-    function getPriceFeed() external view onlyOwner returns (address) {
-        return priceFeed;
-    }
-
-    function getNetworkToken() external view onlyOwner returns (address) {
-        return netowrkWrappedToken;
-    }
-
     function createLedger(
         string memory _name,
-        address[] memory _owners,
+        address ownerManager,
         SmartContractToken[] memory whitelistedERC20,
         address[] memory whitelistedERC721,
         bool _isMaxDailyTransactionsEnabled,
@@ -68,20 +52,19 @@ contract DeploymentFactory {
     ) public payable returns (address) {
         (uint256 feeInWei, ) = feeService.getFeeInEthAndUsd();
         require(msg.value >= feeInWei, "Insufficient registration fee");
-        require(
-            _owners.length > 0,
-            "Least one administrator should be present"
-        );
-
+        IOwnerManger _onwerManager = IOwnerManger(ownerManager);
+        address[] memory owners = _onwerManager.getOwners();
+        require(owners.length > 0, "Least one administrator should be present");
         TransactionSettings memory trSetting = TransactionSettings({
             isMaxDailyTransactionsEnabled: _isMaxDailyTransactionsEnabled,
             maxDailyTransactions: _maxDailyTransactions,
             isMaxTransactionAmountEnabled: _isMaxTransactionAmountEnabled,
             maxTransactionAmountUSD: _maxTransactionAmountUSD
         });
+
         PaymentLedger ms = new PaymentLedger(
             _name,
-            _owners,
+            ownerManager,
             whitelistedERC20,
             whitelistedERC721,
             trSetting,
@@ -101,7 +84,7 @@ contract DeploymentFactory {
             return;
         }
         uint256 currentBalance = address(this).balance;
-        payable(owner).transfer(address(this).balance);
+        payable(owner).transfer(currentBalance);
         emit BalanceTrasfered(currentBalance);
     }
 
