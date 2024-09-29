@@ -1,5 +1,6 @@
 const PaymentLedger = artifacts.require("PaymentLedger");
 const OwnerManager = artifacts.require("OwnerManager");
+const LedgerSettings = artifacts.require("LedgerSettings");
 const MockERC20 = artifacts.require("MockERC20");
 const MockERC721 = artifacts.require("MockERC721");
 const { getNonce, getAddress } = require("./../utils/helpers");
@@ -20,17 +21,19 @@ contract("PaymentLedger", (accounts) => {
     mockERC20 = await MockERC20.new("Mock Token", "MTK", 18);
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
     let deployedOwnerManager = await OwnerManager.new(owners);
+    let deployLedgerSettings = await LedgerSettings.new(
+      deployedOwnerManager.address,
+      true,
+      initialMaxDailyTransactions,
+      true,
+      initialMaxTransactionAmountUSD
+    );
     paymentLedger = await PaymentLedger.new(
       "Payment Ledger",
       deployedOwnerManager.address,
+      deployLedgerSettings.address,
       [[mockERC20.address, 18]],
       [mockERC721.address],
-      {
-        isMaxDailyTransactionsEnabled: true,
-        maxDailyTransactions: initialMaxDailyTransactions,
-        isMaxTransactionAmountEnabled: true,
-        maxTransactionAmountUSD: initialMaxTransactionAmountUSD,
-      },
       "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526", // Mock price feed address
       "0x6725F303b657a9451d8BA641348b6761A6CC7a17", // Mock factory address
       "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // Mock wrapped token address
@@ -264,8 +267,10 @@ contract("PaymentLedger", (accounts) => {
   });
   describe("Settings Proposal", () => {
     it("should propose a settings change", async () => {
+      const ledgerSettings = await paymentLedger.getLedgerSettings();
+      const settingsInstance = await LedgerSettings.at(ledgerSettings);
       nonce = await getNonce(owner1);
-      const transaction = await paymentLedger.proposeSettingsChange(
+      const transaction = await settingsInstance.proposeSettingsChange(
         10,
         5000,
         true,
@@ -274,9 +279,9 @@ contract("PaymentLedger", (accounts) => {
           nonce: nonce,
         }
       );
-      const proposalId = transaction.logs[0].args.id;
 
-      const settingsProposal = await paymentLedger.getSettingProposalById(
+      const proposalId = transaction.logs[0].args.id;
+      const settingsProposal = await settingsInstance.getSettingProposalById(
         proposalId
       );
       assert.equal(settingsProposal.maxDailyTransactions.toString(), "10");
@@ -284,8 +289,11 @@ contract("PaymentLedger", (accounts) => {
     });
 
     it("should approve settings change", async () => {
+      const ledgerSettings = await paymentLedger.getLedgerSettings();
+      const settingsInstance = await LedgerSettings.at(ledgerSettings);
+
       nonce = await getNonce(owner1);
-      const transaction = await paymentLedger.proposeSettingsChange(
+      const transaction = await settingsInstance.proposeSettingsChange(
         10,
         5000,
         true,
@@ -297,11 +305,11 @@ contract("PaymentLedger", (accounts) => {
       const proposalId = transaction.logs[0].args.id;
 
       const nonceOwner2 = await getNonce(owner2);
-      await paymentLedger.approveSettingsChange(proposalId, {
+      await settingsInstance.approveSettingsChange(proposalId, {
         from: owner2,
         nonce: nonceOwner2,
       });
-      const settingsProposal = await paymentLedger.getSettingProposalById(
+      const settingsProposal = await settingsInstance.getSettingProposalById(
         proposalId
       );
       assert.equal(
@@ -312,9 +320,12 @@ contract("PaymentLedger", (accounts) => {
     });
 
     it("should revert when trying to approve an already executed proposal", async () => {
+      const ledgerSettings = await paymentLedger.getLedgerSettings();
+      const settingsInstance = await LedgerSettings.at(ledgerSettings);
+
       nonce = await getNonce(owner1);
 
-      const transaction = await paymentLedger.proposeSettingsChange(
+      const transaction = await settingsInstance.proposeSettingsChange(
         10,
         5000,
         true,
@@ -326,22 +337,20 @@ contract("PaymentLedger", (accounts) => {
       const proposalId = transaction.logs[0].args.id;
       const owner2Nonce = await getNonce(owner2);
       const owner3Nonce = await getNonce(owner3);
-      await paymentLedger.approveSettingsChange(proposalId, {
+      await settingsInstance.approveSettingsChange(proposalId, {
         from: owner2,
         nonce: owner2Nonce,
       });
 
       try {
-        await paymentLedger.approveSettingsChange(proposalId, {
+        await settingsInstance.approveSettingsChange(proposalId, {
           from: owner3,
           nonce: owner3Nonce,
         });
-        const settingsProposal = await paymentLedger.getSettingProposalById(
-          proposalId
-        );
+        await settingsInstance.getSettingProposalById(proposalId);
         nonce = await getNonce(owner1);
 
-        await paymentLedger.approveSettingsChange(proposalId, {
+        await settingsInstance.approveSettingsChange(proposalId, {
           from: owner1,
           nonce: nonce,
         });
