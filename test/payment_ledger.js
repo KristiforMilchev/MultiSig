@@ -266,4 +266,96 @@ contract("PaymentLedger", (accounts) => {
       }
     });
   });
+  describe("Settings Proposal", () => {
+    it("should propose a settings change", async () => {
+      nonce = await getNonce(owner1);
+      const transaction = await paymentLedger.proposeSettingsChange(
+        10,
+        5000,
+        true,
+        false,
+        {
+          nonce: nonce,
+        }
+      );
+      console.log(transaction.logs[0].args.id);
+      const proposalId = transaction.logs[0].args.id;
+
+      const settingsProposal = await paymentLedger.getSettingProposalById(
+        proposalId
+      );
+      assert.equal(settingsProposal.maxDailyTransactions.toString(), "10");
+      assert.equal(settingsProposal.maxTransactionAmountUSD.toString(), "5000");
+    });
+
+    it("should approve settings change", async () => {
+      nonce = await getNonce(owner1);
+      const transaction = await paymentLedger.proposeSettingsChange(
+        10,
+        5000,
+        true,
+        false,
+        {
+          nonce: nonce,
+        }
+      );
+      const proposalId = transaction.logs[0].args.id;
+
+      const nonceOwner2 = await getNonce(owner2);
+      await paymentLedger.approveSettingsChange(proposalId, {
+        from: owner2,
+        nonce: nonceOwner2,
+      });
+      const settingsProposal = await paymentLedger.getSettingProposalById(
+        proposalId
+      );
+      console.log(settingsProposal);
+      assert.equal(
+        settingsProposal.approvals.length,
+        2,
+        "Expected proposal approvals to be 2, got 1"
+      );
+    });
+
+    it("should revert when trying to approve an already executed proposal", async () => {
+      nonce = await getNonce(owner1);
+
+      const transaction = await paymentLedger.proposeSettingsChange(
+        10,
+        5000,
+        true,
+        false,
+        {
+          nonce: nonce,
+        }
+      );
+      const proposalId = transaction.logs[0].args.id;
+      const owner2Nonce = await getNonce(owner2);
+      const owner3Nonce = await getNonce(owner3);
+      await paymentLedger.approveSettingsChange(proposalId, {
+        from: owner2,
+        nonce: owner2Nonce,
+      });
+
+      try {
+        await paymentLedger.approveSettingsChange(proposalId, {
+          from: owner3,
+          nonce: owner3Nonce,
+        });
+        const settingsProposal = await paymentLedger.getSettingProposalById(
+          proposalId
+        );
+        nonce = await getNonce(owner1);
+        console.log(settingsProposal);
+
+        await paymentLedger.approveSettingsChange(proposalId, {
+          from: owner1,
+          nonce: nonce,
+        });
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(error.message.includes("Proposal already executed"));
+      }
+    });
+  });
 });

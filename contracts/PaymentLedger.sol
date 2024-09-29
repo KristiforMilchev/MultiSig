@@ -38,7 +38,9 @@ contract PaymentLedger {
     mapping(uint256 => uint256) private dailyTransactionCount;
     uint256 private lastTransactionDay;
 
-    uint256 public settingsProposalNonce = 0;
+    uint256 private settingsProposalNonce = 0;
+
+    event SettingProposed(uint256 id);
 
     constructor(
         string memory _name,
@@ -310,6 +312,12 @@ contract PaymentLedger {
         return IV2Factory(factories[factoryName].at).getPair(tokenA, tokenB);
     }
 
+    function getSettingProposalById(
+        uint256 id
+    ) external view returns (SettingsProposal memory) {
+        return settingsProposals[id];
+    }
+
     function convertUsdToTokenWei(
         address token,
         uint256 usdAmount,
@@ -404,6 +412,7 @@ contract PaymentLedger {
             .isMaxTransactionAmountEnabled = newIsMaxTransactionAmountEnabled;
         proposal.approvals.push(msg.sender);
         proposal.executed = false;
+        emit SettingProposed(proposalId);
         return settingsProposalNonce;
     }
 
