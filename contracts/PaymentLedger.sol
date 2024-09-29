@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "../interfaces/AggregatorV3.sol";
 import "../interfaces/IOwnerManager.sol";
+import "../interfaces/ILedgerSettings.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IERC721.sol";
 import "../interfaces/TokenPairV2.sol";
@@ -20,6 +21,7 @@ contract PaymentLedger {
     mapping(uint256 => Transaction) private nftTransactions;
     mapping(uint256 => SettingsProposal) public settingsProposals;
     IOwnerManger private ownerManager;
+    ILedgerSettings private ledgerSettings;
 
     SmartContractToken[] private whitelistedERC20;
     address[] private whitelistedERC721;
@@ -31,36 +33,24 @@ contract PaymentLedger {
     AggregatorV3Interface internal priceFeed;
     mapping(string => Factory) public factories;
     string private name;
-    uint256 public maxDailyTransactions = 5;
-    bool public isMaxDailyTransactionsEnabled = true;
-    uint256 public maxTransactionAmountUSD = 10000;
-    bool public isMaxTransactionAmountEnabled = true;
     mapping(uint256 => uint256) private dailyTransactionCount;
     uint256 private lastTransactionDay;
-    uint256 private settingsProposalNonce = 0;
-
-    event SettingProposed(uint256 id);
 
     constructor(
         string memory _name,
-        address ownerManger,
+        address _ownerManger,
+        address _ledgerSettings,
         SmartContractToken[] memory _whitelistedERC20,
         address[] memory _whitelistedERC721,
-        TransactionSettings memory transactionSettings,
         address _priceFeed,
         address _factory,
         address _networkWrappedToken,
         string memory _defaultFactoryName
     ) {
         name = _name;
-        ownerManager = IOwnerManger(ownerManger);
+        ownerManager = IOwnerManger(_ownerManger);
+        ledgerSettings = ILedgerSettings(_ledgerSettings);
         initializeDefaultTokens(_whitelistedERC20, _whitelistedERC721);
-        initializeTransactionSettings(
-            transactionSettings.isMaxDailyTransactionsEnabled,
-            transactionSettings.maxDailyTransactions,
-            transactionSettings.isMaxTransactionAmountEnabled,
-            transactionSettings.maxTransactionAmountUSD
-        );
         initializePriceFeed(_priceFeed);
         initializeDefaultFactory(
             _factory,
@@ -84,19 +74,6 @@ contract PaymentLedger {
         return true;
     }
 
-    function initializeTransactionSettings(
-        bool _isMaxDailyTransactionsEnabled,
-        uint256 _maxDailyTransactions,
-        bool _isMaxTransactionAmountEnabled,
-        uint256 _maxTransactionAmountUSD
-    ) internal returns (bool) {
-        isMaxDailyTransactionsEnabled = _isMaxDailyTransactionsEnabled;
-        maxDailyTransactions = _maxDailyTransactions;
-        isMaxDailyTransactionsEnabled = _isMaxTransactionAmountEnabled;
-        maxTransactionAmountUSD = _maxTransactionAmountUSD;
-        return true;
-    }
-
     function initializePriceFeed(address _priceFeed) internal returns (bool) {
         priceFeed = AggregatorV3Interface(_priceFeed);
         return true;
@@ -116,6 +93,15 @@ contract PaymentLedger {
 
     function getOwnerManager() external view onlyOwner returns (IOwnerManger) {
         return ownerManager;
+    }
+
+    function getLedgerSettings()
+        external
+        view
+        onlyOwner
+        returns (ILedgerSettings)
+    {
+        return ledgerSettings;
     }
 
     function getName() external view onlyOwner returns (string memory) {
@@ -310,12 +296,6 @@ contract PaymentLedger {
         return IV2Factory(factories[factoryName].at).getPair(tokenA, tokenB);
     }
 
-    function getSettingProposalById(
-        uint256 id
-    ) external view returns (SettingsProposal memory) {
-        return settingsProposals[id];
-    }
-
     function convertUsdToTokenWei(
         address token,
         uint256 usdAmount,
@@ -393,57 +373,6 @@ contract PaymentLedger {
         return (amount * tokenPriceInUsd) / 10 ** tokenDecimals;
     }
 
-    function proposeSettingsChange(
-        uint256 newMaxDailyTransactions,
-        uint256 newMaxTransactionAmountUSD,
-        bool newIsMaxDailyTransactionsEnabled,
-        bool newIsMaxTransactionAmountEnabled
-    ) public onlyOwner returns (uint256 proposalId) {
-        settingsProposalNonce++;
-        proposalId = settingsProposalNonce;
-        SettingsProposal storage proposal = settingsProposals[proposalId];
-        proposal.maxDailyTransactions = newMaxDailyTransactions;
-        proposal.maxTransactionAmountUSD = newMaxTransactionAmountUSD;
-        proposal
-            .isMaxDailyTransactionsEnabled = newIsMaxDailyTransactionsEnabled;
-        proposal
-            .isMaxTransactionAmountEnabled = newIsMaxTransactionAmountEnabled;
-        proposal.approvals.push(msg.sender);
-        proposal.executed = false;
-        emit SettingProposed(proposalId);
-        return settingsProposalNonce;
-    }
-
-    function approveSettingsChange(
-        uint256 proposalId
-    ) public onlyOwner returns (bool) {
-        SettingsProposal storage proposal = settingsProposals[proposalId];
-        require(!proposal.executed, "Proposal already executed");
-
-        for (uint256 i = 0; i < proposal.approvals.length; i++) {
-            require(
-                proposal.approvals[i] != msg.sender,
-                "Owner has already approved this proposal"
-            );
-        }
-
-        proposal.approvals.push(msg.sender);
-        address[] memory owners = ownerManager.getOwners();
-        if (proposal.approvals.length == owners.length) {
-            maxDailyTransactions = proposal.maxDailyTransactions;
-            maxTransactionAmountUSD = proposal.maxTransactionAmountUSD;
-            isMaxDailyTransactionsEnabled = proposal
-                .isMaxDailyTransactionsEnabled;
-            isMaxTransactionAmountEnabled = proposal
-                .isMaxTransactionAmountEnabled;
-
-            proposal.executed = true;
-            return true;
-        }
-
-        return false;
-    }
-
     function proposePayment(
         uint256 amount,
         address to,
@@ -455,9 +384,9 @@ contract PaymentLedger {
         withinTransactionAmountLimit(amount)
         returns (bool)
     {
-        if (isMaxTransactionAmountEnabled) {
+        if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
             require(
-                maxTransactionAmountUSD > amount,
+                ledgerSettings.getMaxDailyTransactionAmount() > amount,
                 "Transaction amount exceeds max allowed limit!"
             );
         }
@@ -603,11 +532,11 @@ contract PaymentLedger {
     function _transfer(Transaction storage t) internal {
         require(address(this).balance >= t.amount, "Insufficient balance");
 
-        if (isMaxTransactionAmountEnabled) {
+        if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
             uint256 amountInUsd = convertWeiToUsd(t.amount);
 
             require(
-                amountInUsd <= maxTransactionAmountUSD,
+                amountInUsd <= ledgerSettings.getMaxDailyTransactionAmount(),
                 "Transaction amount exceeds max allowed USD limit"
             );
         }
@@ -636,7 +565,7 @@ contract PaymentLedger {
         uint256 tokenBalance = token.balanceOf(address(this));
         require(tokenBalance >= t.amount, "Insufficient token balance");
 
-        if (isMaxTransactionAmountEnabled) {
+        if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
             uint256 amountInUsd = convertTokenToUsd(
                 t.token,
                 t.amount,
@@ -644,7 +573,7 @@ contract PaymentLedger {
             );
 
             require(
-                amountInUsd <= maxTransactionAmountUSD,
+                amountInUsd <= ledgerSettings.getMaxDailyTransactionAmount(),
                 "Transaction amount exceeds max allowed USD limit"
             );
         }
@@ -681,7 +610,7 @@ contract PaymentLedger {
     }
 
     modifier withinDailyLimit() {
-        if (isMaxDailyTransactionsEnabled) {
+        if (ledgerSettings.getIsMaxDailyTransactionEnabled()) {
             uint256 currentDay = block.timestamp / 1 days;
 
             if (lastTransactionDay != currentDay) {
@@ -690,7 +619,8 @@ contract PaymentLedger {
             }
 
             require(
-                dailyTransactionCount[currentDay] < maxDailyTransactions,
+                dailyTransactionCount[currentDay] <
+                    ledgerSettings.getMaxDailyTransactions(),
                 "Max daily transaction limit reached"
             );
 
@@ -700,9 +630,9 @@ contract PaymentLedger {
     }
 
     modifier withinTransactionAmountLimit(uint256 amountInUSD) {
-        if (isMaxTransactionAmountEnabled) {
+        if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
             require(
-                amountInUSD <= maxTransactionAmountUSD,
+                amountInUSD <= ledgerSettings.getMaxDailyTransactionAmount(),
                 "Transaction exceeds max amount limit"
             );
         }

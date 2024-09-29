@@ -5,6 +5,7 @@ import "./PaymentLedger.sol";
 import "../interfaces/IOwnerManager.sol";
 import "../structrues/SmartContractToken.sol";
 import "../structrues/transaction_setting.sol";
+import "../interfaces/ILedgerSettings.sol";
 
 interface IFeeService {
     function getFeeInEthAndUsd()
@@ -43,31 +44,22 @@ contract DeploymentFactory {
     function createLedger(
         string memory _name,
         address ownerManager,
+        address ledgerSetting,
         SmartContractToken[] memory whitelistedERC20,
-        address[] memory whitelistedERC721,
-        bool _isMaxDailyTransactionsEnabled,
-        uint256 _maxDailyTransactions,
-        bool _isMaxTransactionAmountEnabled,
-        uint256 _maxTransactionAmountUSD
+        address[] memory whitelistedERC721
     ) public payable returns (address) {
         (uint256 feeInWei, ) = feeService.getFeeInEthAndUsd();
         require(msg.value >= feeInWei, "Insufficient registration fee");
         IOwnerManger _onwerManager = IOwnerManger(ownerManager);
         address[] memory owners = _onwerManager.getOwners();
         require(owners.length > 0, "Least one administrator should be present");
-        TransactionSettings memory trSetting = TransactionSettings({
-            isMaxDailyTransactionsEnabled: _isMaxDailyTransactionsEnabled,
-            maxDailyTransactions: _maxDailyTransactions,
-            isMaxTransactionAmountEnabled: _isMaxTransactionAmountEnabled,
-            maxTransactionAmountUSD: _maxTransactionAmountUSD
-        });
 
         PaymentLedger ms = new PaymentLedger(
             _name,
             ownerManager,
+            ledgerSetting,
             whitelistedERC20,
             whitelistedERC721,
-            trSetting,
             priceFeed,
             netowrkWrappedToken,
             factory,
