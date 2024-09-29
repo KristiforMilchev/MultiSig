@@ -1,3 +1,4 @@
+const { ethers } = require("ethers");
 let nonceTracker = {};
 
 //Use only when you expect assrtion to fail!
@@ -19,8 +20,15 @@ async function updateNonceAfterDeployment(account) {
   nonceTracker[account] = newNonce;
 }
 
+async function getAddress(account) {
+  console.log(account);
+  const wallet = new ethers.Wallet(account);
+  return wallet.address;
+}
+
 module.exports = {
   getNonce,
   getNextNonce,
   updateNonceAfterDeployment,
+  getAddress,
 };
