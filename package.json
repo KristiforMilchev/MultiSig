@@ -1,0 +1,18 @@
+{
+  "name": "multisig",
+  "version": "1.0.0",
+  "description": "This Solidity smart contract implements a multi-signature wallet designed to securely manage shared financial assets, particularly for teams or organizations that require collaborative decision-making. The UI for this is still cooking, so please be patient.",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ethereum-waffle": "^4.0.10"
+  }
+}

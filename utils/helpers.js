@@ -1,4 +1,7 @@
 const { ethers } = require("ethers");
+require("dotenv").config();
+const HDWalletProvider = require("@truffle/hdwallet-provider");
+
 let nonceTracker = {};
 
 //Use only when you expect assrtion to fail!

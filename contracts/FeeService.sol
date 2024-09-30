@@ -14,10 +14,21 @@ contract FeeService is IPriceFeed {
     address private taxAddress;
     mapping(string => Factory) public factories;
 
-    constructor(address _priceFeed, address _taxAddress, uint256 _feeInUsd) {
+    constructor(
+        address _priceFeed,
+        address _taxAddress,
+        uint256 _feeInUsd,
+        address _factory,
+        address _networkWrappedToken,
+        string memory _defaultFactoryName
+    ) {
         priceFeed = AggregatorV3Interface(_priceFeed);
         feeInUsd = _feeInUsd;
         taxAddress = _taxAddress;
+        factories[_defaultFactoryName] = Factory({
+            at: _factory,
+            wth: _networkWrappedToken
+        });
     }
 
     function getFeeInEthAndUsd()
@@ -38,6 +49,14 @@ contract FeeService is IPriceFeed {
     function getLatestPrice() external view returns (int) {
         (, int price, , , ) = priceFeed.latestRoundData();
         return price;
+    }
+
+    function getPairAddress(
+        address tokenA,
+        address tokenB,
+        string memory factoryName
+    ) public view returns (address pairAddress) {
+        return IV2Factory(factories[factoryName].at).getPair(tokenA, tokenB);
     }
 
     function getPairForTokens(

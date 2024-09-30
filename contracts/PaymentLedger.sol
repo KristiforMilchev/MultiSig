@@ -43,21 +43,18 @@ contract PaymentLedger {
         address _ledgerSettings,
         SmartContractToken[] memory _whitelistedERC20,
         address[] memory _whitelistedERC721,
-        address _priceFeed,
-        address _factory,
-        address _networkWrappedToken,
-        string memory _defaultFactoryName
+        address _priceFeed
     ) {
         name = _name;
         ownerManager = IOwnerManger(_ownerManger);
         ledgerSettings = ILedgerSettings(_ledgerSettings);
         initializeDefaultTokens(_whitelistedERC20, _whitelistedERC721);
         initializePriceFeed(_priceFeed);
-        initializeDefaultFactory(
-            _factory,
-            _networkWrappedToken,
-            _defaultFactoryName
-        );
+        // initializeDefaultFactory(
+        //     _factory,
+        //     _networkWrappedToken,
+        //     _defaultFactoryName
+        // );
     }
 
     function initializeDefaultTokens(
