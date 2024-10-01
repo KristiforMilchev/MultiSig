@@ -1,6 +1,7 @@
 const PaymentLedger = artifacts.require("PaymentLedger");
 const OwnerManager = artifacts.require("OwnerManager");
 const LedgerSettings = artifacts.require("LedgerSettings");
+const FeeService = artifacts.require("FeeService");
 const MockERC20 = artifacts.require("MockERC20");
 const MockERC721 = artifacts.require("MockERC721");
 const { getNonce, getDeadAddres } = require("./../utils/helpers");
@@ -52,8 +53,19 @@ contract("PaymentLedger", (accounts) => {
     });
 
     it("should initialize owners correctly", async () => {
-      const contractOwners = await paymentLedger.getOwners();
+      const contractOwnerManager = await paymentLedger.getOwnerManager();
+      let currentManager = OwnerManager.at(contractOwnerManager);
+      let contractOwners = await currentManager.getOwners();
       assert.deepEqual(contractOwners, owners);
+    });
+
+    it("Price Feed set.", async function () {
+      let priceFeed = await instance.getPriceFeed();
+      assert.notEqual(
+        priceFeed,
+        deadAddress,
+        "The network wrapped token should not be the zero address, deployment failed!"
+      );
     });
   });
 
