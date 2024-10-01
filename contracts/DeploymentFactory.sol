@@ -60,10 +60,7 @@ contract DeploymentFactory {
             ledgerSetting,
             whitelistedERC20,
             whitelistedERC721,
-            priceFeed,
-            netowrkWrappedToken,
-            factory,
-            defaultFactoryName
+            priceFeed
         );
 
         emit LedgerCreated(address(ms));

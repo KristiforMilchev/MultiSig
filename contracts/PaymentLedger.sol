@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "../interfaces/AggregatorV3.sol";
 import "../interfaces/IOwnerManager.sol";
 import "../interfaces/ILedgerSettings.sol";
+import "../interfaces/IPriceFeed.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IERC721.sol";
 import "../interfaces/TokenPairV2.sol";
@@ -22,6 +23,7 @@ contract PaymentLedger {
     mapping(uint256 => SettingsProposal) public settingsProposals;
     IOwnerManger private ownerManager;
     ILedgerSettings private ledgerSettings;
+    IPriceFeed private priceFeed;
 
     SmartContractToken[] private whitelistedERC20;
     address[] private whitelistedERC721;
@@ -30,7 +32,6 @@ contract PaymentLedger {
     uint256 public nftNonce;
     event Received(address, uint256);
     uint256 private proposalCounter = 0;
-    AggregatorV3Interface internal priceFeed;
     mapping(string => Factory) public factories;
     string private name;
     mapping(uint256 => uint256) private dailyTransactionCount;
@@ -42,21 +43,18 @@ contract PaymentLedger {
         address _ledgerSettings,
         SmartContractToken[] memory _whitelistedERC20,
         address[] memory _whitelistedERC721,
-        address _priceFeed,
-        address _factory,
-        address _networkWrappedToken,
-        string memory _defaultFactoryName
+        address _priceFeed
     ) {
         name = _name;
         ownerManager = IOwnerManger(_ownerManger);
         ledgerSettings = ILedgerSettings(_ledgerSettings);
         initializeDefaultTokens(_whitelistedERC20, _whitelistedERC721);
         initializePriceFeed(_priceFeed);
-        initializeDefaultFactory(
-            _factory,
-            _networkWrappedToken,
-            _defaultFactoryName
-        );
+        // initializeDefaultFactory(
+        //     _factory,
+        //     _networkWrappedToken,
+        //     _defaultFactoryName
+        // );
     }
 
     function initializeDefaultTokens(
@@ -75,7 +73,7 @@ contract PaymentLedger {
     }
 
     function initializePriceFeed(address _priceFeed) internal returns (bool) {
-        priceFeed = AggregatorV3Interface(_priceFeed);
+        priceFeed = IPriceFeed(_priceFeed);
         return true;
     }
 
@@ -89,6 +87,10 @@ contract PaymentLedger {
             wth: _networkWrappedToken
         });
         return true;
+    }
+
+    function getPriceFeed() external view onlyOwner returns (IPriceFeed) {
+        return priceFeed;
     }
 
     function getOwnerManager() external view onlyOwner returns (IOwnerManger) {
@@ -201,89 +203,6 @@ contract PaymentLedger {
         return nftTransactions[nftTransactionId];
     }
 
-    function getPairForTokens(
-        address tokenA,
-        string memory _name
-    ) public view returns (address) {
-        Factory storage currentFactory = factories[_name];
-        IV2Factory factory = IV2Factory(currentFactory.at);
-        return factory.getPair(tokenA, currentFactory.wth);
-    }
-
-    function getTokenReserves(
-        ITokenPairV2 pair,
-        address token
-    ) internal view returns (address tokenReserve, address stablecoinReserve) {
-        address token0 = pair.token0();
-        address token1 = pair.token1();
-
-        return (token0 == token) ? (token0, token1) : (token1, token0);
-    }
-
-    function getReserveAmounts(
-        ITokenPairV2 pair,
-        address tokenReserve
-    )
-        internal
-        view
-        returns (uint112 tokenReserveAmount, uint112 stablecoinReserveAmount)
-    {
-        (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
-        address token0 = pair.token0();
-
-        return
-            (tokenReserve == token0)
-                ? (reserve0, reserve1)
-                : (reserve1, reserve0);
-    }
-
-    function calculatePriceInUsd(
-        uint112 tokenReserveAmount,
-        uint112 stablecoinReserveAmount,
-        uint8 tokenDecimals,
-        uint8 stablecoinDecimals
-    ) internal pure returns (uint256) {
-        uint256 tokenReserveNormalized = uint256(tokenReserveAmount) *
-            10 ** uint256(stablecoinDecimals);
-        uint256 stablecoinReserveNormalized = uint256(stablecoinReserveAmount) *
-            10 ** uint256(tokenDecimals);
-
-        return (stablecoinReserveNormalized * 1e18) / tokenReserveNormalized;
-    }
-
-    function calculateTokenAmount(
-        uint256 usdAmount,
-        uint256 tokenPriceInUsd,
-        uint8 tokenDecimals
-    ) internal pure returns (uint256) {
-        return
-            (usdAmount * 10 ** uint256(tokenDecimals) * 1e18) / tokenPriceInUsd;
-    }
-
-    function convertUsdToWei(uint256 usdAmount) public view returns (uint256) {
-        int256 ethToUsdPrice = getLatestPrice();
-        require(ethToUsdPrice > 0, "Invalid ETH/USD price");
-
-        uint256 etherAmount = (usdAmount * 1e18) / uint256(ethToUsdPrice);
-
-        return etherAmount;
-    }
-
-    function getLatestPrice() public view returns (int) {
-        (, int price, , , ) = priceFeed.latestRoundData();
-        return price;
-    }
-
-    function getBalanceInUSD() public view returns (uint256) {
-        uint256 balanceInWei = address(this).balance;
-        int256 ethToUsdPrice = getLatestPrice();
-        require(ethToUsdPrice > 0, "Invalid ETH/USD price");
-
-        uint256 balanceInUSD = (balanceInWei * uint256(ethToUsdPrice)) / 1e18;
-
-        return balanceInUSD;
-    }
-
     function getBalance() public view returns (uint256) {
         return address(this).balance;
     }
@@ -294,83 +213,6 @@ contract PaymentLedger {
         string memory factoryName
     ) public view returns (address pairAddress) {
         return IV2Factory(factories[factoryName].at).getPair(tokenA, tokenB);
-    }
-
-    function convertUsdToTokenWei(
-        address token,
-        uint256 usdAmount,
-        string memory factory
-    ) public view returns (uint256) {
-        address pairAddress = getPairForTokens(token, factory);
-        require(pairAddress != address(0), "Pair not found");
-
-        ITokenPairV2 pair = ITokenPairV2(pairAddress);
-        (address tokenReserve, address stablecoinReserve) = getTokenReserves(
-            pair,
-            token
-        );
-
-        (
-            uint112 tokenReserveAmount,
-            uint112 stablecoinReserveAmount
-        ) = getReserveAmounts(pair, tokenReserve);
-
-        uint8 tokenDecimals = IERC20(tokenReserve).decimals();
-        uint8 stablecoinDecimals = IERC20(stablecoinReserve).decimals();
-
-        uint256 tokenPriceInUsd = calculatePriceInUsd(
-            tokenReserveAmount,
-            stablecoinReserveAmount,
-            tokenDecimals,
-            stablecoinDecimals
-        );
-
-        uint256 tokenAmountInWei = calculateTokenAmount(
-            usdAmount,
-            tokenPriceInUsd,
-            tokenDecimals
-        );
-
-        return tokenAmountInWei;
-    }
-
-    function convertWeiToUsd(
-        uint256 amountInWei
-    ) public view returns (uint256) {
-        int256 ethToUsdPrice = getLatestPrice();
-        require(ethToUsdPrice > 0, "Invalid ETH/USD price");
-        return (amountInWei * uint256(ethToUsdPrice)) / 1e18;
-    }
-
-    function convertTokenToUsd(
-        address token,
-        uint256 amount,
-        string memory factory
-    ) public view returns (uint256) {
-        address pairAddress = getPairForTokens(token, factory);
-        require(pairAddress != address(0), "Pair not found");
-
-        ITokenPairV2 pair = ITokenPairV2(pairAddress);
-        (address tokenReserve, address stablecoinReserve) = getTokenReserves(
-            pair,
-            token
-        );
-        (
-            uint112 tokenReserveAmount,
-            uint112 stablecoinReserveAmount
-        ) = getReserveAmounts(pair, tokenReserve);
-
-        uint8 tokenDecimals = IERC20(tokenReserve).decimals();
-        uint8 stablecoinDecimals = IERC20(stablecoinReserve).decimals();
-
-        uint256 tokenPriceInUsd = calculatePriceInUsd(
-            tokenReserveAmount,
-            stablecoinReserveAmount,
-            tokenDecimals,
-            stablecoinDecimals
-        );
-
-        return (amount * tokenPriceInUsd) / 10 ** tokenDecimals;
     }
 
     function proposePayment(
@@ -521,6 +363,15 @@ contract PaymentLedger {
         return result;
     }
 
+    function getBalanceInUSD() public view returns (uint256) {
+        uint256 balanceInWei = address(this).balance;
+        int256 ethToUsdPrice = priceFeed.getLatestPrice();
+        require(ethToUsdPrice > 0, "Invalid ETH/USD price");
+
+        uint256 balanceInUSD = (balanceInWei * uint256(ethToUsdPrice)) / 1e18;
+
+        return balanceInUSD;
+    }
     receive() external payable {
         emit Received(msg.sender, msg.value);
     }
@@ -533,7 +384,7 @@ contract PaymentLedger {
         require(address(this).balance >= t.amount, "Insufficient balance");
 
         if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
-            uint256 amountInUsd = convertWeiToUsd(t.amount);
+            uint256 amountInUsd = priceFeed.convertWeiToUsd(t.amount);
 
             require(
                 amountInUsd <= ledgerSettings.getMaxDailyTransactionAmount(),
@@ -566,11 +417,14 @@ contract PaymentLedger {
         require(tokenBalance >= t.amount, "Insufficient token balance");
 
         if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
-            uint256 amountInUsd = convertTokenToUsd(
-                t.token,
-                t.amount,
-                "defaultFactory"
-            );
+            uint256 amountInUsd = 1;
+
+            //TODO Figure this one later.
+            // priceFeed.convertTokenToUsd(
+            //     t.token,
+            //     t.amount,
+            //     "defaultFactory"
+            // );
 
             require(
                 amountInUsd <= ledgerSettings.getMaxDailyTransactionAmount(),

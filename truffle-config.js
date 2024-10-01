@@ -10,6 +10,7 @@ require("dotenv").config();
 //DEV_RPC_URL=https://rpc.blockcert.net only if using my testnet otherwise your own rpc.
 
 let privateKey = process.env.PRIVATE_KEY; // Private key of the wallet
+let testAccounts = process.env.LOACAL_TESTNET_ACCOUNTS;
 const devRpcUrl = process.env.DEV_RPC_URL; // RPC endpoint of your development server
 
 console.log(privateKey);
@@ -35,6 +36,13 @@ module.exports = {
   networks: {
     development: {
       provider: () => new HDWalletProvider(privateKey, devRpcUrl),
+      network_id: "*",
+      gas: 6721975,
+      gasPrice: 20000000000,
+    },
+    local: {
+      provider: () =>
+        new HDWalletProvider(testAccounts, "HTTP://127.0.0.1:7545"),
       network_id: "*",
       gas: 6721975,
       gasPrice: 20000000000,
