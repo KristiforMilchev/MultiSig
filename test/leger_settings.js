@@ -12,7 +12,6 @@ contract("LedgerSettings", function (accounts) {
   before(async () => {
     try {
       const provider = new ethers.providers.Web3Provider(web3.currentProvider);
-
       // Get the first account as a signer
       const signer = provider.getSigner(accounts[0]);
       mockContract = await deployMockContract(signer, ownerContract.abi);
