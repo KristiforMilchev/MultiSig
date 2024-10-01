@@ -4,10 +4,13 @@ const HDWalletProvider = require("@truffle/hdwallet-provider");
 
 let nonceTracker = {};
 
+function getDeadAddres() {
+  return "0x0000000000000000000000000000000000000000";
+}
 //Use only when you expect assrtion to fail!
-async function getNonce(account) {
+async function getNonce(account, printNonce = false) {
   let currentNonce = await web3.eth.getTransactionCount(account);
-  console.log(currentNonce);
+  if (printNonce) console.log(currentNonce);
   return currentNonce;
 }
 
@@ -24,9 +27,14 @@ async function updateNonceAfterDeployment(account) {
 }
 
 async function getAddress(account) {
-  console.log(account);
   const wallet = new ethers.Wallet(account);
   return wallet.address;
+}
+
+async function getSigner(account) {
+  const provider = new ethers.providers.Web3Provider(web3.currentProvider);
+  const signer = provider.getSigner(account);
+  return signer;
 }
 
 module.exports = {
@@ -34,4 +42,6 @@ module.exports = {
   getNextNonce,
   updateNonceAfterDeployment,
   getAddress,
+  getSigner,
+  getDeadAddres,
 };
