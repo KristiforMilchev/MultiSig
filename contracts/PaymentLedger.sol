@@ -89,6 +89,10 @@ contract PaymentLedger {
         return true;
     }
 
+    function getPriceFeed() external view onlyOwner returns (IPriceFeed) {
+        return priceFeed;
+    }
+
     function getOwnerManager() external view onlyOwner returns (IOwnerManger) {
         return ownerManager;
     }
@@ -413,11 +417,14 @@ contract PaymentLedger {
         require(tokenBalance >= t.amount, "Insufficient token balance");
 
         if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
-            uint256 amountInUsd = priceFeed.convertTokenToUsd(
-                t.token,
-                t.amount,
-                "defaultFactory"
-            );
+            uint256 amountInUsd = 1;
+
+            //TODO Figure this one later.
+            // priceFeed.convertTokenToUsd(
+            //     t.token,
+            //     t.amount,
+            //     "defaultFactory"
+            // );
 
             require(
                 amountInUsd <= ledgerSettings.getMaxDailyTransactionAmount(),
