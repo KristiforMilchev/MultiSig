@@ -1,18 +1,21 @@
 const PaymentLedger = artifacts.require("PaymentLedger");
 const OwnerManager = artifacts.require("OwnerManager");
 const LedgerSettings = artifacts.require("LedgerSettings");
-const FeeService = artifacts.require("FeeService");
+const MockLedgerSettings = require("./mocks/ledger_setting");
+const MockOwnerManager = require("./mocks/owner_manager");
+const MockFeeService = require("./mocks/fee_service_mock");
+
 const MockERC20 = artifacts.require("MockERC20");
 const MockERC721 = artifacts.require("MockERC721");
 const { getNonce, getDeadAddres } = require("./../utils/helpers");
 contract("PaymentLedger", (accounts) => {
   let deadAddress;
   let paymentLedger;
-  let ownerManager;
+  let mockOwnerManager;
+  let mockLedgerSettings;
+  let mockFeeService;
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
-  const initialMaxDailyTransactions = 5;
-  const initialMaxTransactionAmountUSD = 10000;
   let mockERC20;
   let mockERC721;
   let nonce;
@@ -23,24 +26,22 @@ contract("PaymentLedger", (accounts) => {
     deadAddress = getDeadAddres();
     mockERC20 = await MockERC20.new("Mock Token", "MTK", 18);
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
-    let deployedOwnerManager = await OwnerManager.new(owners);
-    let deployLedgerSettings = await LedgerSettings.new(
-      deployedOwnerManager.address,
-      true,
-      initialMaxDailyTransactions,
-      true,
-      initialMaxTransactionAmountUSD
-    );
+
+    deadAddress = getDeadAddres();
+    mockOwnerManager = await MockOwnerManager.instance(owner1, owners);
+    mockLedgerSettings = await MockLedgerSettings.instance(owner1, owners);
+    mockFeeService = await MockFeeService.instance(owner1);
+    console.log(mockFeeService.address);
+    var fees = await mockFeeService.getFeeInEthAndUsd();
+    feeInWei = fees[0];
+
     paymentLedger = await PaymentLedger.new(
       "Payment Ledger",
-      deployedOwnerManager.address,
-      deployLedgerSettings.address,
+      mockOwnerManager.address,
+      mockLedgerSettings.address,
       [[mockERC20.address, 18]],
       [mockERC721.address],
-      "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526", // Mock price feed address
-      "0x6725F303b657a9451d8BA641348b6761A6CC7a17", // Mock factory address
-      "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // Mock wrapped token address
-      "defaultFactory" // Default factory name
+      mockFeeService.address
     );
     nonce = await getNonce(accounts[0]);
     await sleep(100);
@@ -54,13 +55,13 @@ contract("PaymentLedger", (accounts) => {
 
     it("should initialize owners correctly", async () => {
       const contractOwnerManager = await paymentLedger.getOwnerManager();
-      let currentManager = OwnerManager.at(contractOwnerManager);
+      let currentManager = await OwnerManager.at(contractOwnerManager);
       let contractOwners = await currentManager.getOwners();
       assert.deepEqual(contractOwners, owners);
     });
 
     it("Price Feed set.", async function () {
-      let priceFeed = await instance.getPriceFeed();
+      let priceFeed = await paymentLedger.getPriceFeed();
       assert.notEqual(
         priceFeed,
         deadAddress,
@@ -134,18 +135,18 @@ contract("PaymentLedger", (accounts) => {
   describe("Transaction Proposals", () => {
     it("should propose a payment", async () => {
       nonce = await getNonce(accounts[0]);
-      await paymentLedger.proposePayment(1000, owner2, deadAddress, {
+      await paymentLedger.proposePayment(499, owner2, deadAddress, {
         nonce: nonce,
       });
       const transactions = await paymentLedger.getTransactionHistory();
       assert.equal(transactions.length, 1);
-      assert.equal(transactions[0].amount.toString(), "1000");
+      assert.equal(transactions[0].amount.toString(), "499");
       assert.equal(transactions[0].to, owner2);
     });
 
     it("should approve a payment", async () => {
       nonce = await getNonce(owner1);
-      await paymentLedger.proposePayment(1000, owner2, deadAddress, {
+      await paymentLedger.proposePayment(499, owner2, deadAddress, {
         nonce: nonce,
       });
 
@@ -167,15 +168,9 @@ contract("PaymentLedger", (accounts) => {
     });
 
     it("should revert if an owner tries to approve the same payment twice", async () => {
-      nonce = await getNonce(owner1);
-      await paymentLedger.proposePayment(1000, owner2, deadAddress, {
-        nonce: nonce,
-      });
-      const paymentId = 2;
-
       try {
+        const paymentId = 1;
         nonce = await getNonce(owner1);
-
         await paymentLedger.approvePayment(paymentId, {
           from: owner1,
           nonce: nonce,
@@ -184,6 +179,20 @@ contract("PaymentLedger", (accounts) => {
       } catch (error) {
         assert.isTrue(
           error.message.includes("Owner has already approved this transaction")
+        );
+      }
+    });
+
+    it("should revert if an owner tries to propose a payment that exceeds the max transaction amount", async () => {
+      try {
+        nonce = await getNonce(owner1);
+        await paymentLedger.proposePayment(500, owner2, deadAddress, {
+          nonce: nonce,
+        });
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(
+          error.message.includes("Transaction exceeds max amount limit")
         );
       }
     });
@@ -257,6 +266,23 @@ contract("PaymentLedger", (accounts) => {
       } catch (error) {
         assert.isTrue(
           error.message.includes("Owner has already approved this transaction")
+        );
+      }
+    });
+
+    it("should revent when a owner tries to propose more payments than the maximum daily limit", async () => {
+      try {
+        for (let i = 0; i < 20; i++) {
+          nonce = await getNonce(owner1);
+          await paymentLedger.proposePayment(50, owner2, deadAddress, {
+            nonce: nonce,
+          });
+        }
+
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.isTrue(
+          error.message.includes("Max daily transaction limit reached")
         );
       }
     });

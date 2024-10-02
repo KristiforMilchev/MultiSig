@@ -207,12 +207,14 @@ contract PaymentLedger {
         return address(this).balance;
     }
 
-    function getPairAddress(
-        address tokenA,
-        address tokenB,
-        string memory factoryName
-    ) public view returns (address pairAddress) {
-        return IV2Factory(factories[factoryName].at).getPair(tokenA, tokenB);
+    function getOustandingDailyLimit()
+        external
+        view
+        onlyOwner
+        returns (uint256)
+    {
+        uint256 currentDay = block.timestamp / 1 days;
+        return dailyTransactionCount[currentDay];
     }
 
     function proposePayment(
@@ -372,6 +374,7 @@ contract PaymentLedger {
 
         return balanceInUSD;
     }
+
     receive() external payable {
         emit Received(msg.sender, msg.value);
     }
@@ -486,7 +489,7 @@ contract PaymentLedger {
     modifier withinTransactionAmountLimit(uint256 amountInUSD) {
         if (ledgerSettings.getIsMaxTransactionAmountEnabled()) {
             require(
-                amountInUSD <= ledgerSettings.getMaxDailyTransactionAmount(),
+                amountInUSD < ledgerSettings.getMaxDailyTransactionAmount(),
                 "Transaction exceeds max amount limit"
             );
         }

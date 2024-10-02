@@ -6,7 +6,7 @@ async function instance(account, owners) {
   let signer = await getSigner(account);
   let mockLedgerSetting = await deployMockContract(signer, ledgerSetting.abi);
 
-  mockLedgerSetting.mock.getSettingProposalById.withArgs(1).returns([
+  await mockLedgerSetting.mock.getSettingProposalById.withArgs(1).returns([
     10, // maxDailyTransactions
     1000, // maxTransactionAmountUSD
     true, // isMaxDailyTransactionsEnabled
@@ -15,16 +15,16 @@ async function instance(account, owners) {
     false, // executed
   ]);
 
-  mockLedgerSetting.mock.getIsMaxTransactionAmountEnabled.returns(true);
-  mockLedgerSetting.mock.getIsMaxDailyTransactionEnabled.returns(false);
-  mockLedgerSetting.mock.getMaxDailyTransactions.returns(5);
-  mockLedgerSetting.mock.getMaxDailyTransactionAmount.returns(500);
+  await mockLedgerSetting.mock.getIsMaxTransactionAmountEnabled.returns(true);
+  await mockLedgerSetting.mock.getIsMaxDailyTransactionEnabled.returns(true);
+  await mockLedgerSetting.mock.getMaxDailyTransactions.returns(10);
+  await mockLedgerSetting.mock.getMaxDailyTransactionAmount.returns(500);
 
-  mockLedgerSetting.mock.proposeSettingsChange
+  await mockLedgerSetting.mock.proposeSettingsChange
     .withArgs(100, 10000, true, true)
     .returns(1);
 
-  mockLedgerSetting.mock.approveSettingsChange.withArgs(1).returns(true);
+  await mockLedgerSetting.mock.approveSettingsChange.withArgs(1).returns(true);
 
   return mockLedgerSetting;
 }
