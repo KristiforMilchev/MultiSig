@@ -37,6 +37,7 @@ contract OwnerManager {
         proposalCounter++;
         return true;
     }
+
     function getOwnerProposal(
         uint256 id
     ) external view onlyOwner returns (Proposal memory) {

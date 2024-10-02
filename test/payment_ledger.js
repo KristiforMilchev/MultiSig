@@ -1,6 +1,5 @@
 const PaymentLedger = artifacts.require("PaymentLedger");
 const OwnerManager = artifacts.require("OwnerManager");
-const LedgerSettings = artifacts.require("LedgerSettings");
 const MockLedgerSettings = require("./mocks/ledger_setting");
 const MockOwnerManager = require("./mocks/owner_manager");
 const MockFeeService = require("./mocks/fee_service_mock");
