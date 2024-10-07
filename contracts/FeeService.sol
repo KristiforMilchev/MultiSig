@@ -12,6 +12,7 @@ contract FeeService is IPriceFeed {
     AggregatorV3Interface internal priceFeed;
     uint256 private feeInUsd;
     address private taxAddress;
+
     constructor(address _priceFeed, address _taxAddress, uint256 _feeInUsd) {
         priceFeed = AggregatorV3Interface(_priceFeed);
         feeInUsd = _feeInUsd;
