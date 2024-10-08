@@ -1,22 +1,33 @@
 const ContractService = artifacts.require("ContractService");
-const { getDeadAddres } = require("./../utils/helpers");
+const { getDeadAddres, getNonce } = require("./../utils/helpers");
 const assert = require("assert");
 const MockPKV2 = require("./mocks/pkv2");
+const MockOwnerManager = require("./mocks/owner_manager");
 const MockTokenPair = require("./mocks/tokenPair");
-const { TransactionTypes } = require("ethers/lib/utils");
+const MockERC20 = artifacts.require("MockERC20");
+const MockERC721 = artifacts.require("MockERC721");
 
 contract("ContractService", function (accounts) {
   let instance;
   let mockPKV2;
+  let mockOwnerManager;
   let mockTokenPair;
   let dead;
+  let mockERC20;
+  let mockERC721;
+  const [owner1, owner2, owner3] = accounts;
+  const owners = [owner1, owner2, owner3];
   before(async () => {
+    mockERC20 = await MockERC20.new("Mock Token", "MTK", 18);
+    mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
     mockTokenPair = await MockTokenPair.instance(accounts[0]);
     mockPKV2 = await MockPKV2.instance(accounts[0], mockTokenPair.address);
+    mockOwnerManager = await MockOwnerManager.instance(accounts[0], owners);
     dead = getDeadAddres();
     instance = await ContractService.new(
       mockPKV2.address,
       "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+      mockOwnerManager.address,
       "PkSwap"
     );
   });
@@ -51,5 +62,76 @@ contract("ContractService", function (accounts) {
       console.log(ex);
       assert.fail("Shouldn't error");
     }
+  });
+
+  describe("Whitelisted ERC20", () => {
+    it("should add a whitelisted ERC20 token", async () => {
+      nonce = await getNonce(accounts[0]);
+
+      await instance.addWhitelistedERC20(
+        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+        18,
+        {
+          nonce: nonce,
+        }
+      );
+      const whitelistedTokens = await instance.getERC20();
+      assert.equal(whitelistedTokens.length, 1);
+      assert.equal(
+        whitelistedTokens[0].contractAddress,
+        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd"
+      );
+    });
+
+    it("should revert when adding an already whitelisted ERC20 token", async () => {
+      try {
+        nonce = await getNonce(accounts[0]);
+
+        await instance.addWhitelistedERC20(
+          "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+          18,
+          {
+            nonce: nonce,
+          }
+        );
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.equal(error.message.includes("Token already whitelisted"), true);
+      }
+    });
+  });
+
+  describe("Whitelisted ERC721", () => {
+    it("should add a whitelisted ERC721 token", async () => {
+      nonce = await getNonce(accounts[0]);
+
+      await instance.addWhitelistedERC721(
+        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+        {
+          nonce: nonce,
+        }
+      );
+      const whitelistedTokens = await instance.getERC721();
+      assert.equal(whitelistedTokens.length, 1);
+      assert.equal(
+        whitelistedTokens[0],
+        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd"
+      );
+    });
+
+    it("should revert when adding an already whitelisted ERC721 token", async () => {
+      try {
+        nonce = await getNonce(accounts[0]);
+        await instance.addWhitelistedERC721(
+          "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+          {
+            nonce: nonce,
+          }
+        );
+        assert.fail("Expected revert not received");
+      } catch (error) {
+        assert.equal(error.message.includes("Token already whitelisted"), true);
+      }
+    });
   });
 });
