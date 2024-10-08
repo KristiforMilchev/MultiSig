@@ -3,11 +3,13 @@ const { getNonce, getDeadAddres } = require("./../utils/helpers");
 const MockLedgerSettings = require("./mocks/ledger_setting");
 const MockOwnerManager = require("./mocks/owner_manager");
 const MockFeeService = require("./mocks/fee_service_mock");
+const MockContractManager = require("./mocks/contract_manager");
 
 contract("DeploymentFactory", function (accounts) {
   let mockOwnerManager;
   let mockLedgerSettings;
   let mockFeeService;
+  let mockContractService;
   let deadAddress;
   let erc20 = [
     ["0xae13d989dac2f0debff460ac112a837c89baa7cd", 18],
@@ -31,6 +33,9 @@ contract("DeploymentFactory", function (accounts) {
       );
       mockFeeService = await MockFeeService.instance(owner);
       console.log(mockFeeService.address);
+
+      mockContractService = await MockContractManager.instance(owner);
+
       var fees = await mockFeeService.getFeeInEthAndUsd();
       feeInWei = fees[0];
       instance = await DeploymentFactory.new(
@@ -56,8 +61,7 @@ contract("DeploymentFactory", function (accounts) {
       "Test Ledger",
       mockOwnerManager.address,
       mockLedgerSettings.address,
-      erc20,
-      nfts,
+      mockContractService.address,
       { value: feeInWei, nonce: nonce }
     );
     assert.equal(
@@ -75,8 +79,7 @@ contract("DeploymentFactory", function (accounts) {
         "Test Ledger",
         emptyManager.address,
         mockLedgerSettings.address,
-        erc20,
-        nfts,
+        mockContractService.address,
         { value: feeInWei, nonce: nonce }
       );
       assert.fail("Expected revert not received"); // If the call doesn't revert, fail the test
