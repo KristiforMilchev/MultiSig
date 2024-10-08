@@ -10,7 +10,7 @@ contract LedgerSettings {
     bool public isMaxDailyTransactionsEnabled = true;
     uint256 public maxTransactionAmountUSD = 10000;
     bool public isMaxTransactionAmountEnabled = true;
-    IOwnerManger private ownerManager;
+    IOwnerManager private ownerManager;
     event SettingProposed(uint256 id);
 
     constructor(
@@ -20,7 +20,7 @@ contract LedgerSettings {
         bool _isMaxTransactionAmountEnabled,
         uint256 _maxTransactionAmountUSD
     ) {
-        ownerManager = IOwnerManger(_ownerManager);
+        ownerManager = IOwnerManager(_ownerManager);
         isMaxDailyTransactionsEnabled = _isMaxDailyTransactionsEnabled;
         maxDailyTransactions = _maxDailyTransactions;
         isMaxDailyTransactionsEnabled = _isMaxTransactionAmountEnabled;
