@@ -7,25 +7,96 @@ import "../interfaces/TokenPairV2.sol";
 import "../interfaces/V2Factory.sol";
 import "../structrues/factory.sol";
 import "../interfaces/IERC20.sol";
+import "../structrues/SmartContractToken.sol";
+import "../interfaces/IOwnerManager.sol";
 
 contract ContractService {
     mapping(string => Factory) public factories;
+    IOwnerManager ownerManager;
+    SmartContractToken[] private whitelistedERC20;
+    address[] private whitelistedERC721;
     error FactoryDoesNotExist(string name);
+
     constructor(
         address _factory,
         address _networkWrappedToken,
+        address _ownerManager,
         string memory _defaultFactoryName
     ) {
+        ownerManager = IOwnerManager(_ownerManager);
         factories[_defaultFactoryName] = Factory({
             at: _factory,
             wth: _networkWrappedToken
         });
     }
 
+    function getERC20()
+        external
+        view
+        onlyOwner
+        returns (SmartContractToken[] memory)
+    {
+        return whitelistedERC20;
+    }
+
+    function addWhitelistedERC20(
+        address tokenAddress,
+        int decimals
+    ) public onlyOwner returns (bool) {
+        require(!isTokenWhitelisted(tokenAddress), "Token already whitelisted");
+        SmartContractToken memory newToken = SmartContractToken({
+            contractAddress: tokenAddress,
+            decimals: decimals
+        });
+
+        whitelistedERC20.push(newToken);
+
+        return true;
+    }
+
+    function isTokenWhitelisted(
+        address tokenAddress
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < whitelistedERC20.length; i++) {
+            if (whitelistedERC20[i].contractAddress == tokenAddress) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function getERC721() external view onlyOwner returns (address[] memory) {
+        return whitelistedERC721;
+    }
+
+    function addWhitelistedERC721(
+        address tokenAddress
+    ) public onlyOwner returns (bool) {
+        require(
+            !isERC721TokenWhitelisted(tokenAddress),
+            "Token already whitelisted"
+        );
+
+        whitelistedERC721.push(tokenAddress);
+
+        return true;
+    }
+
+    function isERC721TokenWhitelisted(
+        address tokenAddress
+    ) internal view returns (bool) {
+        for (uint256 i = 0; i < whitelistedERC721.length; i++) {
+            if (whitelistedERC721[i] == tokenAddress) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function getPairForTokens(
         address tokenA,
         string memory _name
-    ) public view returns (address) {
+    ) public view onlyOwner returns (address) {
         if (factories[_name].at == address(0)) {
             revert FactoryDoesNotExist(_name);
         }
@@ -36,6 +107,15 @@ contract ContractService {
     }
 
     modifier onlyOwner() {
+        bool isOwner = false;
+        address[] memory owners = ownerManager.getOwners();
+        for (uint256 i = 0; i < owners.length; i++) {
+            if (owners[i] == msg.sender) {
+                isOwner = true;
+                break;
+            }
+        }
+        require(isOwner, "Not authorized");
         _;
     }
 }

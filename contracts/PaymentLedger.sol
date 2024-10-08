@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "../interfaces/AggregatorV3.sol";
 import "../interfaces/IOwnerManager.sol";
 import "../interfaces/ILedgerSettings.sol";
+import "../interfaces/IContractManager.sol";
 import "../interfaces/IPriceFeed.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IERC721.sol";
@@ -21,12 +22,13 @@ contract PaymentLedger {
     mapping(uint256 => Transaction) private transactions;
     mapping(uint256 => Transaction) private nftTransactions;
     mapping(uint256 => SettingsProposal) public settingsProposals;
-    IOwnerManger private ownerManager;
+    IOwnerManager private ownerManager;
     ILedgerSettings private ledgerSettings;
     IPriceFeed private priceFeed;
+    IContractManager private contractManager;
 
-    SmartContractToken[] private whitelistedERC20;
-    address[] private whitelistedERC721;
+    // SmartContractToken[] private whitelistedERC20;
+    // address[] private whitelistedERC721;
 
     uint256 public nonce;
     uint256 public nftNonce;
@@ -41,35 +43,14 @@ contract PaymentLedger {
         string memory _name,
         address _ownerManger,
         address _ledgerSettings,
-        SmartContractToken[] memory _whitelistedERC20,
-        address[] memory _whitelistedERC721,
+        address _contractManager,
         address _priceFeed
     ) {
         name = _name;
-        ownerManager = IOwnerManger(_ownerManger);
+        ownerManager = IOwnerManager(_ownerManger);
         ledgerSettings = ILedgerSettings(_ledgerSettings);
-        initializeDefaultTokens(_whitelistedERC20, _whitelistedERC721);
+        contractManager = IContractManager(_contractManager);
         initializePriceFeed(_priceFeed);
-        // initializeDefaultFactory(
-        //     _factory,
-        //     _networkWrappedToken,
-        //     _defaultFactoryName
-        // );
-    }
-
-    function initializeDefaultTokens(
-        SmartContractToken[] memory _whitelistedERC20,
-        address[] memory _whitelistedERC721
-    ) internal returns (bool) {
-        for (uint256 i = 0; i < _whitelistedERC20.length; i++) {
-            SmartContractToken memory token = _whitelistedERC20[i];
-            whitelistedERC20.push(token);
-        }
-
-        for (uint256 i = 0; i < _whitelistedERC721.length; i++) {
-            whitelistedERC721.push(_whitelistedERC721[i]);
-        }
-        return true;
     }
 
     function initializePriceFeed(address _priceFeed) internal returns (bool) {
@@ -93,7 +74,7 @@ contract PaymentLedger {
         return priceFeed;
     }
 
-    function getOwnerManager() external view onlyOwner returns (IOwnerManger) {
+    function getOwnerManager() external view onlyOwner returns (IOwnerManager) {
         return ownerManager;
     }
 
@@ -108,69 +89,6 @@ contract PaymentLedger {
 
     function getName() external view onlyOwner returns (string memory) {
         return name;
-    }
-
-    function getERC20()
-        external
-        view
-        onlyOwner
-        returns (SmartContractToken[] memory)
-    {
-        return whitelistedERC20;
-    }
-
-    function addWhitelistedERC20(
-        address tokenAddress,
-        int decimals
-    ) public onlyOwner returns (bool) {
-        require(!isTokenWhitelisted(tokenAddress), "Token already whitelisted");
-        SmartContractToken memory newToken = SmartContractToken({
-            contractAddress: tokenAddress,
-            decimals: decimals
-        });
-
-        whitelistedERC20.push(newToken);
-
-        return true;
-    }
-
-    function isTokenWhitelisted(
-        address tokenAddress
-    ) internal view returns (bool) {
-        for (uint256 i = 0; i < whitelistedERC20.length; i++) {
-            if (whitelistedERC20[i].contractAddress == tokenAddress) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function getERC721() external view onlyOwner returns (address[] memory) {
-        return whitelistedERC721;
-    }
-
-    function addWhitelistedERC721(
-        address tokenAddress
-    ) public onlyOwner returns (bool) {
-        require(
-            !isERC721TokenWhitelisted(tokenAddress),
-            "Token already whitelisted"
-        );
-
-        whitelistedERC721.push(tokenAddress);
-
-        return true;
-    }
-
-    function isERC721TokenWhitelisted(
-        address tokenAddress
-    ) internal view returns (bool) {
-        for (uint256 i = 0; i < whitelistedERC721.length; i++) {
-            if (whitelistedERC721[i] == tokenAddress) {
-                return true;
-            }
-        }
-        return false;
     }
 
     function getTransactionHistory()
