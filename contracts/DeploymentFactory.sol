@@ -45,21 +45,18 @@ contract DeploymentFactory {
         string memory _name,
         address ownerManager,
         address ledgerSetting,
-        SmartContractToken[] memory whitelistedERC20,
-        address[] memory whitelistedERC721
+        address contractManager
     ) public payable returns (address) {
         (uint256 feeInWei, ) = feeService.getFeeInEthAndUsd();
         require(msg.value >= feeInWei, "Insufficient registration fee");
-        IOwnerManger _onwerManager = IOwnerManger(ownerManager);
+        IOwnerManager _onwerManager = IOwnerManager(ownerManager);
         address[] memory owners = _onwerManager.getOwners();
         require(owners.length > 0, "Least one administrator should be present");
-
         PaymentLedger ms = new PaymentLedger(
             _name,
             ownerManager,
             ledgerSetting,
-            whitelistedERC20,
-            whitelistedERC721,
+            contractManager,
             priceFeed
         );
 
