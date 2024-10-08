@@ -3,8 +3,7 @@ const OwnerManager = artifacts.require("OwnerManager");
 const MockLedgerSettings = require("./mocks/ledger_setting");
 const MockOwnerManager = require("./mocks/owner_manager");
 const MockFeeService = require("./mocks/fee_service_mock");
-
-const MockERC20 = artifacts.require("MockERC20");
+const MockContractService = require("./mocks/contract_manager");
 const MockERC721 = artifacts.require("MockERC721");
 const { getNonce, getDeadAddres } = require("./../utils/helpers");
 contract("PaymentLedger", (accounts) => {
@@ -12,6 +11,7 @@ contract("PaymentLedger", (accounts) => {
   let paymentLedger;
   let mockOwnerManager;
   let mockLedgerSettings;
+  let mockContractService;
   let mockFeeService;
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
@@ -23,9 +23,9 @@ contract("PaymentLedger", (accounts) => {
   }
   before(async () => {
     deadAddress = getDeadAddres();
-    mockERC20 = await MockERC20.new("Mock Token", "MTK", 18);
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
 
+    mockContractService = await MockContractService.instance(owner1);
     deadAddress = getDeadAddres();
     mockOwnerManager = await MockOwnerManager.instance(owner1, owners);
     mockLedgerSettings = await MockLedgerSettings.instance(owner1, owners);
@@ -38,8 +38,7 @@ contract("PaymentLedger", (accounts) => {
       "Payment Ledger",
       mockOwnerManager.address,
       mockLedgerSettings.address,
-      [[mockERC20.address, 18]],
-      [mockERC721.address],
+      mockContractService.address,
       mockFeeService.address
     );
     nonce = await getNonce(accounts[0]);
@@ -69,68 +68,6 @@ contract("PaymentLedger", (accounts) => {
     });
   });
 
-  describe("Whitelisted ERC20", () => {
-    it("should add a whitelisted ERC20 token", async () => {
-      nonce = await getNonce(accounts[0]);
-
-      await paymentLedger.addWhitelistedERC20(
-        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
-        18,
-        {
-          nonce: nonce,
-        }
-      );
-      const whitelistedTokens = await paymentLedger.getERC20();
-      assert.equal(whitelistedTokens.length, 2);
-      assert.equal(
-        whitelistedTokens[1].contractAddress,
-        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd"
-      );
-    });
-
-    it("should revert when adding an already whitelisted ERC20 token", async () => {
-      try {
-        nonce = await getNonce(accounts[0]);
-
-        await paymentLedger.addWhitelistedERC20(mockERC20.address, 18, {
-          nonce: nonce,
-        });
-        assert.fail("Expected revert not received");
-      } catch (error) {
-        assert.isTrue(error.message.includes("Token already whitelisted"));
-      }
-    });
-  });
-
-  describe("Whitelisted ERC721", () => {
-    it("should revert when adding an already whitelisted ERC721 token", async () => {
-      try {
-        nonce = await getNonce(accounts[0]);
-        await paymentLedger.addWhitelistedERC721(mockERC721.address, {
-          nonce: nonce,
-        });
-        assert.fail("Expected revert not received");
-      } catch (error) {
-        assert.isTrue(error.message.includes("Token already whitelisted"));
-      }
-    });
-    it("should add a whitelisted ERC721 token", async () => {
-      nonce = await getNonce(accounts[0]);
-
-      await paymentLedger.addWhitelistedERC721(
-        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
-        {
-          nonce: nonce,
-        }
-      );
-      const whitelistedTokens = await paymentLedger.getERC721();
-      assert.equal(whitelistedTokens.length, 2);
-      assert.equal(
-        whitelistedTokens[1],
-        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd"
-      );
-    });
-  });
   describe("Transaction Proposals", () => {
     it("should propose a payment", async () => {
       nonce = await getNonce(accounts[0]);
