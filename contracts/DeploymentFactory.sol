@@ -94,6 +94,19 @@ contract DeploymentFactory {
         return address(ms);
     }
 
+    function contractVerified(
+        address currentContract
+    ) external view returns (bool) {
+        for (uint i = 0; i < contracts.length; i++) {
+            address c = contracts[i];
+            if (c == currentContract) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function withdraw() public onlyOwner {
         if (address(this).balance == 0) {
             emit EmptyBalance();
