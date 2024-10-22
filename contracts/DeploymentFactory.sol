@@ -22,7 +22,7 @@ contract DeploymentFactory {
     string private defaultFactoryName;
     IFeeService private feeService;
     bytes32 public originalBytecodeHash;
-
+    address[] private contracts;
     event EmptyBalance();
     event BalanceTrasfered(uint256 balance);
     event LedgerCreated(address indexed ledgerAddress);
@@ -44,6 +44,29 @@ contract DeploymentFactory {
         originalBytecodeHash = _originalHash;
     }
 
+    function getBytecode(
+        address _contractAddr
+    ) internal view returns (bytes memory) {
+        uint256 size;
+        assembly {
+            size := extcodesize(_contractAddr)
+        }
+
+        bytes memory code = new bytes(size);
+        assembly {
+            extcodecopy(_contractAddr, add(code, 0x20), 0, size)
+        }
+        return code;
+    }
+
+    function isContractUnaltered(
+        address _contractAddr
+    ) public view returns (bool) {
+        bytes memory b = getBytecode(_contractAddr);
+        bytes32 currentHash = keccak256(b);
+        return currentHash == originalBytecodeHash;
+    }
+
     function createLedger(
         string memory _name,
         address ownerManager,
@@ -62,6 +85,10 @@ contract DeploymentFactory {
             contractManager,
             priceFeed
         );
+        bool verified = isContractUnaltered(address(ms));
+        if (verified) {
+            contracts.push(address(ms));
+        }
 
         emit LedgerCreated(address(ms));
         return address(ms);
@@ -80,24 +107,5 @@ contract DeploymentFactory {
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
         _;
-    }
-
-    function getBytecode(
-        address _contractAddr
-    ) internal view returns (bytes memory) {
-        assembly {
-            let size := extcodesize(_contractAddr)
-            let code := mload(0x40)
-            mstore(0x40, add(code, size))
-            extcodecopy(_contractAddr, code, 0, size)
-            return(code, size)
-        }
-    }
-
-    function isContractUnaltered(
-        address _contractAddr
-    ) external view returns (bool) {
-        bytes32 currentHash = keccak256(getBytecode(_contractAddr));
-        return currentHash == originalBytecodeHash;
     }
 }
