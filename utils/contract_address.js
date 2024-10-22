@@ -2,7 +2,7 @@ const Web3 = require("web3");
 const contractName = process.argv[4];
 const contract = artifacts.require(contractName);
 
-const web3 = new Web3("https://rpc.blockcert.net");
+const web3 = new Web3("HTTP://127.0.0.1:7545");
 
 module.exports = async function (callback) {
   try {

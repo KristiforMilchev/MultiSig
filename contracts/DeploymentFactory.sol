@@ -21,6 +21,7 @@ contract DeploymentFactory {
     address private factory;
     string private defaultFactoryName;
     IFeeService private feeService;
+    bytes32 public originalBytecodeHash;
 
     event EmptyBalance();
     event BalanceTrasfered(uint256 balance);
@@ -31,7 +32,8 @@ contract DeploymentFactory {
         address _priceFeed,
         address _factory,
         address _netowrkWrappedToken,
-        string memory _defaultFactoryName
+        string memory _defaultFactoryName,
+        bytes32 _originalHash
     ) {
         owner = msg.sender;
         feeService = IFeeService(_feeService);
@@ -39,6 +41,7 @@ contract DeploymentFactory {
         factory = _factory;
         netowrkWrappedToken = _netowrkWrappedToken;
         defaultFactoryName = _defaultFactoryName;
+        originalBytecodeHash = _originalHash;
     }
 
     function createLedger(
@@ -77,5 +80,24 @@ contract DeploymentFactory {
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
         _;
+    }
+
+    function getBytecode(
+        address _contractAddr
+    ) internal view returns (bytes memory) {
+        assembly {
+            let size := extcodesize(_contractAddr)
+            let code := mload(0x40)
+            mstore(0x40, add(code, size))
+            extcodecopy(_contractAddr, code, 0, size)
+            return(code, size)
+        }
+    }
+
+    function isContractUnaltered(
+        address _contractAddr
+    ) external view returns (bool) {
+        bytes32 currentHash = keccak256(getBytecode(_contractAddr));
+        return currentHash == originalBytecodeHash;
     }
 }
