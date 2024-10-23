@@ -87,6 +87,15 @@ contract PaymentLedger {
         return ledgerSettings;
     }
 
+    function getContractManager()
+        external
+        view
+        onlyOwner
+        returns (IContractManager)
+    {
+        return contractManager;
+    }
+
     function getName() external view onlyOwner returns (string memory) {
         return name;
     }
