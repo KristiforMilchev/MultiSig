@@ -40,4 +40,4 @@ jobs:
         run: truffle compile
 
       - name: Run tests
-        run: truffle test
+        run: truffle test --no-parallel
