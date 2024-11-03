@@ -17,26 +17,27 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '16'  # Set this to match the version your project uses
+          node-version: "16"
 
-      - name: Install dependencies
+      - name: Cache node_modules
+        uses: actions/cache@v2
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Create .env file from secret
+        run: echo "${{ secrets.CI_ENV }}" > .env
+
+      - name: Install node modules
         run: npm install
 
-      - name: Install Truffle
-        run: npm install -g truffle
+      - name: Verify truffle installation
+        run: truffle version
 
       - name: Compile contracts
         run: truffle compile
 
-      - name: Run migrations (optional)
-        run: truffle migrate --network development
-
       - name: Run tests
         run: truffle test
-
-      # Optional: Upload test results (if you have any reports)
-      # - name: Archive test results
-      #   uses: actions/upload-artifact@v2
-      #   with:
-      #     name: test-results
-      #     path: test-results/  # Adjust this to your actual test results directory if you have it

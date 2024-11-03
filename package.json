@@ -16,6 +16,11 @@
     "@openzeppelin/test-helpers": "^0.5.16",
     "@types/chai": "^5.0.0",
     "@types/node": "^22.7.4",
-    "ethereum-waffle": "^4.0.10"
+    "dotenv": "^16.0.0",
+    "ethereum-waffle": "^4.0.10",
+    "truffle": "^5.11.5"
+  },
+  "dependencies": {
+    "@truffle/hdwallet-provider": "^2.1.15"
   }
 }
