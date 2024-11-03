@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "./LedgerSettings.sol";
 import "./OwnerManager.sol";
 import "./ContractService.sol";
+import "../structrues/SmartContractToken.sol";
 
 contract DeploymentBuilder {
     address private factory;
@@ -25,13 +26,17 @@ contract DeploymentBuilder {
     event OwnerMangerCreated(address indexed ownerManagerAddress);
 
     function createContractManager(
-        address onwerManager
+        address onwerManager,
+        SmartContractToken[] memory erc20,
+        address[] memory nfts
     ) public payable returns (address) {
         ContractService cs = new ContractService(
             factory,
             netowrkWrappedToken,
             onwerManager,
-            defaultFactoryName
+            defaultFactoryName,
+            erc20,
+            nfts
         );
 
         emit ContractServiceCreatred(address(cs));

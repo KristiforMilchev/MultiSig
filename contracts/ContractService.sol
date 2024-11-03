@@ -21,13 +21,20 @@ contract ContractService {
         address _factory,
         address _networkWrappedToken,
         address _ownerManager,
-        string memory _defaultFactoryName
+        string memory _defaultFactoryName,
+        SmartContractToken[] memory erc20,
+        address[] memory nfts
     ) {
         ownerManager = IOwnerManager(_ownerManager);
         factories[_defaultFactoryName] = Factory({
             at: _factory,
             wth: _networkWrappedToken
         });
+
+        for (uint256 i = 0; i < erc20.length; i++) {
+            whitelistedERC20.push(erc20[i]);
+        }
+        whitelistedERC721 = nfts;
     }
 
     function getERC20()
