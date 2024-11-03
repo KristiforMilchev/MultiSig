@@ -33,9 +33,6 @@ jobs:
       - name: Install node modules
         run: npm install
 
-      - name: Verify truffle installation
-        run: truffle version
-
       - name: Compile contracts
         run: truffle compile
 
