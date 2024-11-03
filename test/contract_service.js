@@ -28,7 +28,9 @@ contract("ContractService", function (accounts) {
       mockPKV2.address,
       "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
       mockOwnerManager.address,
-      "PkSwap"
+      "PkSwap",
+      [],
+      []
     );
   });
 
