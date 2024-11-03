@@ -32,9 +32,9 @@ jobs:
         run: |
           echo "PRIVATE_KEY=${{ secrets.PRIVATE_KEY }}" >> .env
           echo "DEV_RPC_URL=${{ secrets.DEV_RPC_URL }}" >> .env
-          echo "PKSwapFactory=${{ secrets.PKSwapFactory }}" >> .env
-          echo "FeeCollectorAddress=${{ secrets.FeeCollectorAddress }}" >> .env
-          echo "WrappedToken=${{ secrets.WrappedToken }}" >> .env
+          echo "PKSwapFactory=${{ secrets.PKSWAPFACTORY }}" >> .env
+          echo "FeeCollectorAddress=${{ secrets.FEECOLLECTORADDRESS }}" >> .env
+          echo "WrappedToken=${{ secrets.WRAPPEDTOKEN }}" >> .env
           echo "LOCAL_TESTNET_ACCOUNTS=${{ secrets.LOCAL_TESTNET_ACCOUNTS }}" >> .env
           cat .env
 
