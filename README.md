@@ -63,8 +63,7 @@ and that means Javascript, well i do have plans to migrate the tests to GO in th
 The rules are as follows if you make any changes and break any tests, do not delete them, do not modify them without a PR discussion and a good reason.
 
 ## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+ ![image](https://github.com/user-attachments/assets/3be78952-25c3-4571-9c38-1dc645b94b03)
 
 ---
 
