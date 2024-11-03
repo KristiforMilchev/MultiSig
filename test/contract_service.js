@@ -26,7 +26,7 @@ contract("ContractService", function (accounts) {
     dead = getDeadAddres();
     instance = await ContractService.new(
       mockPKV2.address,
-      "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+      process.env.WrappedToken,
       mockOwnerManager.address,
       "PkSwap",
       [],

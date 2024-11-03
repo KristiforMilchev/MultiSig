@@ -30,6 +30,9 @@ jobs:
       - name: Create .env file from secret
         run: echo "${{ secrets.CI_ENV }}" > .env
 
+      - name: dump env
+        run: echo "${{ secrets.CI_ENV }}"
+
       - name: Install node modules
         run: npm install
 
