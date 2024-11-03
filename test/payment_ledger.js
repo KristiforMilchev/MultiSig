@@ -5,7 +5,7 @@ const MockOwnerManager = require("./mocks/owner_manager");
 const MockFeeService = require("./mocks/fee_service_mock");
 const MockContractService = require("./mocks/contract_manager");
 const MockERC721 = artifacts.require("MockERC721");
-const { getNonce, getDeadAddres } = require("./../utils/helpers");
+const { getNonce, getDeadAddres, delay } = require("./../utils/helpers");
 contract("PaymentLedger", (accounts) => {
   let deadAddress;
   let paymentLedger;
@@ -18,9 +18,11 @@ contract("PaymentLedger", (accounts) => {
   let mockERC20;
   let mockERC721;
   let nonce;
-  async function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
+
+  beforeEach(async () => {
+    await delay(10000);
+  });
+
   before(async () => {
     deadAddress = getDeadAddres();
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
@@ -42,7 +44,6 @@ contract("PaymentLedger", (accounts) => {
       mockFeeService.address
     );
     nonce = await getNonce(accounts[0]);
-    await sleep(100);
   });
 
   describe("Initialization", () => {

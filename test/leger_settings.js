@@ -1,5 +1,5 @@
 const LedgerSettings = artifacts.require("LedgerSettings");
-const { getNonce } = require("./../utils/helpers");
+const { getNonce, delay } = require("./../utils/helpers");
 const { ethers } = require("ethers");
 const { deployMockContract } = require("@ethereum-waffle/mock-contract");
 const ownerContract = artifacts.require("OwnerManager");
@@ -8,6 +8,10 @@ contract("LedgerSettings", function (accounts) {
   let mockContract;
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
+
+  beforeEach(async () => {
+    await delay(10000);
+  });
 
   before(async () => {
     try {

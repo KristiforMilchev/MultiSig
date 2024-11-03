@@ -10,7 +10,7 @@ require("dotenv").config();
 //DEV_RPC_URL=https://rpc.blockcert.net only if using my testnet otherwise your own rpc.
 
 let privateKey = process.env.PRIVATE_KEY; // Private key of the wallet
-let testAccounts = process.env.LOACAL_TESTNET_ACCOUNTS;
+let testAccounts = process.env.LOCAL_TESTNET_ACCOUNTS;
 const devRpcUrl = process.env.DEV_RPC_URL; // RPC endpoint of your development server
 
 console.log(privateKey);

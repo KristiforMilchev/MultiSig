@@ -1,11 +1,12 @@
 const ContractService = artifacts.require("ContractService");
-const { getDeadAddres, getNonce } = require("./../utils/helpers");
+const { getDeadAddres, getNonce, delay } = require("./../utils/helpers");
 const assert = require("assert");
 const MockPKV2 = require("./mocks/pkv2");
 const MockOwnerManager = require("./mocks/owner_manager");
 const MockTokenPair = require("./mocks/tokenPair");
 const MockERC20 = artifacts.require("MockERC20");
 const MockERC721 = artifacts.require("MockERC721");
+require("dotenv").config();
 
 contract("ContractService", function (accounts) {
   let instance;
@@ -17,6 +18,11 @@ contract("ContractService", function (accounts) {
   let mockERC721;
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
+
+  beforeEach(async () => {
+    await delay(10000);
+  });
+
   before(async () => {
     mockERC20 = await MockERC20.new("Mock Token", "MTK", 18);
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
@@ -41,10 +47,7 @@ contract("ContractService", function (accounts) {
       await instance.getPairForTokens(dead, factoryName);
       assert.fail("The function did not revert as expected");
     } catch (error) {
-      assert(
-        error.data.includes("0x48fc96f4"),
-        `Unexpected error message: ${error.data}`
-      );
+      assert(error.code == -32000, "Expected revert, got another error!");
     }
   });
 

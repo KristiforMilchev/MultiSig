@@ -17,27 +17,32 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "20"
+          cache: "npm" # This caches node_modules automatically based on package-lock.json
 
-      - name: Cache node_modules
+      - name: Cache global npm packages
         uses: actions/cache@v2
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.npm # Cache path for globally installed npm packages
+          key: ${{ runner.os }}-npm-global-${{ hashFiles('package.json') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-npm-global-
 
-      - name: Create .env file from secret
-        run: echo "${{ secrets.CI_ENV }}" > .env
+      - name: Create .env file from Secrets
+        run: |
+          echo "PRIVATE_KEY=${{ secrets.PRIVATE_KEY }}" >> .env
+          echo "DEV_RPC_URL=${{ secrets.DEV_RPC_URL }}" >> .env
+          echo "PKSwapFactory=${{ secrets.PKSwapFactory }}" >> .env
+          echo "FeeCollectorAddress=${{ secrets.FeeCollectorAddress }}" >> .env
+          echo "WrappedToken=${{ secrets.WrappedToken }}" >> .env
+          echo "LOCAL_TESTNET_ACCOUNTS=${{ secrets.LOCAL_TESTNET_ACCOUNTS }}" >> .env
+          cat .env
 
-      - name: dump env
-        run: echo "${{ secrets.CI_ENV }}"
-
-      - name: Install node modules
-        run: npm install
-
-      - name: Install truffle global
+      - name: Install truffle globally if not cached
         run: npm install -g truffle
+
+      - name: Install npm and dependencies if not cached
+        run: npm install
 
       - name: Compile contracts
         run: truffle compile

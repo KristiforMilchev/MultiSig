@@ -37,6 +37,8 @@ async function getSigner(account) {
   return signer;
 }
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 module.exports = {
   getNonce,
   getNextNonce,
@@ -44,4 +46,5 @@ module.exports = {
   getAddress,
   getSigner,
   getDeadAddres,
+  delay,
 };

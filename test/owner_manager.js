@@ -1,16 +1,15 @@
 const OwnerManager = artifacts.require("OwnerManager");
-const { getNonce } = require("./../utils/helpers");
+const { getNonce, delay } = require("./../utils/helpers");
 
-/*
- * uncomment accounts to access the test accounts made available by the
- * Ethereum client
- * See docs: https://www.trufflesuite.com/docs/truffle/testing/writing-tests-in-javascript
- */
 contract("OwnerManager", function (accounts) {
   let instance;
 
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
+
+  beforeEach(async () => {
+    await delay(10000);
+  });
 
   before(async () => {
     instance = await OwnerManager.new(owners);

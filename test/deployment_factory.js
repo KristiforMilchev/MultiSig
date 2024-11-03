@@ -1,9 +1,11 @@
 const DeploymentFactory = artifacts.require("DeploymentFactory");
-const { getNonce, getDeadAddres } = require("./../utils/helpers");
+const Aggregator = artifacts.require("AggregatorV3");
+const { getNonce, getDeadAddres, delay } = require("./../utils/helpers");
 const MockLedgerSettings = require("./mocks/ledger_setting");
 const MockOwnerManager = require("./mocks/owner_manager");
 const MockFeeService = require("./mocks/fee_service_mock");
 const MockContractManager = require("./mocks/contract_manager");
+require("dotenv").config();
 
 contract("DeploymentFactory", function (accounts) {
   let mockOwnerManager;
@@ -11,17 +13,17 @@ contract("DeploymentFactory", function (accounts) {
   let mockFeeService;
   let mockContractService;
   let deadAddress;
-  let erc20 = [
-    ["0xae13d989dac2f0debff460ac112a837c89baa7cd", 18],
-    ["0xf30ecfba5166f68e59ef00bdd529232a4fe72dcc", 14],
-  ];
-  let nfts = ["0xfbe4ea6ad7146a6ed40013d60a32519472f1e81a"];
   const owner = accounts[0];
   let feeInWei = 90000000000000;
   let fee;
   feeInWei = fee;
   let instance;
   let administrators = [accounts[0], accounts[1], accounts[2]];
+  let aggregator;
+
+  beforeEach(async () => {
+    await delay(10000);
+  });
 
   before(async () => {
     try {
@@ -35,14 +37,16 @@ contract("DeploymentFactory", function (accounts) {
       console.log(mockFeeService.address);
 
       mockContractService = await MockContractManager.instance(owner);
-
+      aggregator = await Aggregator.new();
       var fees = await mockFeeService.getFeeInEthAndUsd();
       feeInWei = fees[0];
+      console.log("Factory:", process.env.PKSwapFactory);
+      console.log("Wrapped Token:", process.env.WrappedToken);
       instance = await DeploymentFactory.new(
         mockFeeService.address,
-        "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526",
-        "0x6725F303b657a9451d8BA641348b6761A6CC7a17",
-        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+        aggregator.address,
+        process.env.PKSwapFactory,
+        process.env.WrappedToken,
         "PkSwap",
         "0x"
       );

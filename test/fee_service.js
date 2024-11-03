@@ -1,11 +1,15 @@
 const FeeService = artifacts.require("FeeService");
-const { getNonce } = require("./../utils/helpers");
+const { getNonce, delay } = require("./../utils/helpers");
 const assert = require("assert");
 const MockAggregatorV3 = require("./mocks/aggregator_v3_interface");
 
 contract("FeeService", function (accounts) {
   let feeService;
   let mockAggregator;
+
+  beforeEach(async () => {
+    await delay(10000);
+  });
 
   before(async () => {
     mockAggregator = await MockAggregatorV3.instance(accounts[0]);

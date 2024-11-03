@@ -5,6 +5,7 @@ const LedgerSettigns = require("./mocks/ledger_setting.js");
 const OwnerManager = require("./mocks/owner_manager.js");
 const FeeService = require("./mocks/fee_service_mock.js");
 const { assert } = require("console");
+const { delay } = require("./../utils/helpers");
 
 contract("VerificationService", function (accounts) {
   let instance;
@@ -22,6 +23,11 @@ contract("VerificationService", function (accounts) {
   let lsByteCode;
   let fsByteCode;
   let hash;
+
+  beforeEach(async () => {
+    await delay(10000);
+  });
+
   before(async () => {
     contractManager = await ContractManager.instance(owner1);
     ledgerSettings = await LedgerSettigns.instance(owner1, owners);
