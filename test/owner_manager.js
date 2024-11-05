@@ -7,10 +7,6 @@ contract("OwnerManager", function (accounts) {
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
 
-  beforeEach(async () => {
-    await delay(10000);
-  });
-
   before(async () => {
     instance = await OwnerManager.new(owners);
   });
@@ -129,5 +125,11 @@ contract("OwnerManager", function (accounts) {
     } catch (error) {
       assert.isTrue(true);
     }
+  });
+
+  it("should return the list of owners", async () => {
+    const currentOwners = await instance.getOwners();
+    console.log("owners list", currentOwners);
+    assert.equal(currentOwners.length > 0, true, "Owners list is empty");
   });
 });

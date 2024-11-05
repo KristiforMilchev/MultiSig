@@ -19,10 +19,6 @@ contract("ContractService", function (accounts) {
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
 
-  beforeEach(async () => {
-    await delay(10000);
-  });
-
   before(async () => {
     mockERC20 = await MockERC20.new("Mock Token", "MTK", 18);
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");

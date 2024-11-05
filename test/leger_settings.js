@@ -9,10 +9,6 @@ contract("LedgerSettings", function (accounts) {
   const [owner1, owner2, owner3] = accounts;
   const owners = [owner1, owner2, owner3];
 
-  beforeEach(async () => {
-    await delay(10000);
-  });
-
   before(async () => {
     try {
       const provider = new ethers.providers.Web3Provider(web3.currentProvider);

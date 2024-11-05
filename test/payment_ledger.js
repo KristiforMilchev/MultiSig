@@ -19,10 +19,6 @@ contract("PaymentLedger", (accounts) => {
   let mockERC721;
   let nonce;
 
-  beforeEach(async () => {
-    await delay(10000);
-  });
-
   before(async () => {
     deadAddress = getDeadAddres();
     mockERC721 = await MockERC721.new("Mock NFT", "MNFT");
@@ -225,5 +221,26 @@ contract("PaymentLedger", (accounts) => {
     });
   });
 
-  describe("Owner Management", () => {});
+  describe("Owner Management", () => {
+    it("Should be able to retrive the owner manager service addess", async () => {
+      var ownersService = await paymentLedger.getOwnerManager();
+      assert.equal(
+        ownersService != "",
+        true,
+        "Owners service address is undefined"
+      );
+    });
+
+    it("Should be able to retrive the owner manager service addess and retrive the list of owners", async () => {
+      var ownersService = await paymentLedger.getOwnerManager();
+      var ownersServiceContract = await OwnerManager.at(ownersService);
+
+      var currentOwners = await ownersServiceContract.getOwners();
+      assert.equal(
+        currentOwners.length > 0,
+        true,
+        "Owners service was retruned, however it failed to return a list of owners"
+      );
+    });
+  });
 });

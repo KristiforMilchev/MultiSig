@@ -27,9 +27,6 @@ contract PaymentLedger {
     IPriceFeed private priceFeed;
     IContractManager private contractManager;
 
-    // SmartContractToken[] private whitelistedERC20;
-    // address[] private whitelistedERC721;
-
     uint256 public nonce;
     uint256 public nftNonce;
     event Received(address, uint256);
@@ -41,13 +38,13 @@ contract PaymentLedger {
 
     constructor(
         string memory _name,
-        address _ownerManger,
+        address _ownerManager,
         address _ledgerSettings,
         address _contractManager,
         address _priceFeed
     ) {
         name = _name;
-        ownerManager = IOwnerManager(_ownerManger);
+        ownerManager = IOwnerManager(_ownerManager);
         ledgerSettings = ILedgerSettings(_ledgerSettings);
         contractManager = IContractManager(_contractManager);
         initializePriceFeed(_priceFeed);
@@ -70,30 +67,20 @@ contract PaymentLedger {
         return true;
     }
 
-    function getPriceFeed() external view onlyOwner returns (IPriceFeed) {
-        return priceFeed;
+    function getPriceFeed() external view onlyOwner returns (address) {
+        return address(priceFeed);
     }
 
-    function getOwnerManager() external view onlyOwner returns (IOwnerManager) {
-        return ownerManager;
+    function getOwnerManager() external view onlyOwner returns (address) {
+        return address(ownerManager);
     }
 
-    function getLedgerSettings()
-        external
-        view
-        onlyOwner
-        returns (ILedgerSettings)
-    {
-        return ledgerSettings;
+    function getLedgerSettings() external view onlyOwner returns (address) {
+        return address(ledgerSettings);
     }
 
-    function getContractManager()
-        external
-        view
-        onlyOwner
-        returns (IContractManager)
-    {
-        return contractManager;
+    function getContractManager() external view onlyOwner returns (address) {
+        return address(contractManager);
     }
 
     function getName() external view onlyOwner returns (string memory) {
@@ -290,16 +277,6 @@ contract PaymentLedger {
         }
 
         return result;
-    }
-
-    function getBalanceInUSD() public view returns (uint256) {
-        uint256 balanceInWei = address(this).balance;
-        int256 ethToUsdPrice = priceFeed.getLatestPrice();
-        require(ethToUsdPrice > 0, "Invalid ETH/USD price");
-
-        uint256 balanceInUSD = (balanceInWei * uint256(ethToUsdPrice)) / 1e18;
-
-        return balanceInUSD;
     }
 
     receive() external payable {

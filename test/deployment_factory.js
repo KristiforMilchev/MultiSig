@@ -1,4 +1,7 @@
 const DeploymentFactory = artifacts.require("DeploymentFactory");
+const OwnerManager = artifacts.require("OwnerManager");
+const PaymentLedger = artifacts.require("PaymentLedger");
+
 const Aggregator = artifacts.require("AggregatorV3");
 const { getNonce, getDeadAddres, delay } = require("./../utils/helpers");
 const MockLedgerSettings = require("./mocks/ledger_setting");
@@ -20,10 +23,6 @@ contract("DeploymentFactory", function (accounts) {
   let instance;
   let administrators = [accounts[0], accounts[1], accounts[2]];
   let aggregator;
-
-  beforeEach(async () => {
-    await delay(10000);
-  });
 
   before(async () => {
     try {
@@ -132,6 +131,37 @@ contract("DeploymentFactory", function (accounts) {
         error.message.includes("Not authorized"),
         "Expected 'Not authorized' error, got: " + error.message
       );
+    }
+  });
+
+  it("Should create new ledger and return the owners service contract", async function () {
+    try {
+      const nonce = await getNonce(owner);
+      console.log("Owner Service Address arugment", mockOwnerManager.address);
+      const receipt = await instance.createLedger(
+        "Test Ledger",
+        mockOwnerManager.address,
+        mockLedgerSettings.address,
+        mockContractService.address,
+        { value: feeInWei, nonce: nonce }
+      );
+
+      console.log(receipt.logs[0]);
+      const ledger = await PaymentLedger.at(receipt.logs[0].args[0]);
+      const ownersServiceAddress = await ledger.getOwnerManager();
+      console.log("ownersServiceAddress", ownersServiceAddress);
+      const ownerService = await OwnerManager.at(ownersServiceAddress);
+      const ownersList = await ownerService.getOwners();
+
+      console.log(ownersList);
+      assert.equal(
+        receipt.logs[0].event,
+        "LedgerCreated",
+        "LedgerCreated event was not emitted"
+      );
+    } catch (ex) {
+      console.log(ex);
+      assert.fail("Should not revert!");
     }
   });
 });

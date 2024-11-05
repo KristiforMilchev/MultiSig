@@ -7,10 +7,6 @@ contract("FeeService", function (accounts) {
   let feeService;
   let mockAggregator;
 
-  beforeEach(async () => {
-    await delay(10000);
-  });
-
   before(async () => {
     mockAggregator = await MockAggregatorV3.instance(accounts[0]);
 

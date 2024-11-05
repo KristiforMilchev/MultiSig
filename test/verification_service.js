@@ -24,10 +24,6 @@ contract("VerificationService", function (accounts) {
   let fsByteCode;
   let hash;
 
-  beforeEach(async () => {
-    await delay(10000);
-  });
-
   before(async () => {
     contractManager = await ContractManager.instance(owner1);
     ledgerSettings = await LedgerSettigns.instance(owner1, owners);
