@@ -4,17 +4,18 @@ pragma solidity ^0.8.19;
 import "../structrues/Proposal.sol";
 
 contract OwnerManager {
+    bool private initialize = false;
     uint256 private proposalCounter = 0;
     uint256 private removeProposalCounter = 0;
     address[] private owners;
-
     Proposal[] private addOwnerProposals;
     Proposal[] private removeOwnerProposals;
     event OwnerProposed(uint256 id);
 
-    constructor(address[] memory _owners) {
+    function init(address[] memory _owners) external onlyOnce returns (bool) {
         require(_owners.length > 0, "Owners required");
         owners = _owners;
+        return true;
     }
 
     function getOwners() public view returns (address[] memory) {
@@ -158,6 +159,11 @@ contract OwnerManager {
             }
         }
         require(isOwner, "Not authorized");
+        _;
+    }
+
+    modifier onlyOnce() {
+        require(initialize == false, "Initialized!");
         _;
     }
 }

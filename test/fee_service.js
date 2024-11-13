@@ -10,7 +10,8 @@ contract("FeeService", function (accounts) {
   before(async () => {
     mockAggregator = await MockAggregatorV3.instance(accounts[0]);
 
-    feeService = await FeeService.new(mockAggregator.address, accounts[0], 10);
+    feeService = await FeeService.new();
+    await feeService.init(mockAggregator.address, accounts[0], 10);
   });
 
   it("should return the correct fee in ETH and USD", async () => {

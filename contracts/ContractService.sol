@@ -11,20 +11,21 @@ import "../structrues/SmartContractToken.sol";
 import "../interfaces/IOwnerManager.sol";
 
 contract ContractService {
+    bool private initialize = false;
     mapping(string => Factory) public factories;
     IOwnerManager ownerManager;
     SmartContractToken[] private whitelistedERC20;
     address[] private whitelistedERC721;
     error FactoryDoesNotExist(string name);
 
-    constructor(
+    function init(
         address _factory,
         address _networkWrappedToken,
         address _ownerManager,
         string memory _defaultFactoryName,
         SmartContractToken[] memory erc20,
         address[] memory nfts
-    ) {
+    ) external onlyOnce returns (bool) {
         ownerManager = IOwnerManager(_ownerManager);
         factories[_defaultFactoryName] = Factory({
             at: _factory,
@@ -35,6 +36,7 @@ contract ContractService {
             whitelistedERC20.push(erc20[i]);
         }
         whitelistedERC721 = nfts;
+        return true;
     }
 
     function getERC20()
@@ -123,6 +125,11 @@ contract ContractService {
             }
         }
         require(isOwner, "Not authorized");
+        _;
+    }
+
+    modifier onlyOnce() {
+        require(initialize == false, "Initialized!");
         _;
     }
 }

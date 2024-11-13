@@ -6,6 +6,8 @@ import "../interfaces/IOwnerManager.sol";
 import "../structrues/SmartContractToken.sol";
 import "../structrues/transaction_setting.sol";
 import "../interfaces/ILedgerSettings.sol";
+import "../structrues/verification_result.sol";
+import "../interfaces/IVerificationService.sol";
 
 interface IFeeService {
     function getFeeInEthAndUsd()
@@ -19,9 +21,9 @@ contract DeploymentFactory {
     address private priceFeed;
     address private netowrkWrappedToken;
     address private factory;
+    address private verificationService;
     string private defaultFactoryName;
     IFeeService private feeService;
-    bytes32 public originalBytecodeHash;
     address[] private contracts;
     event EmptyBalance();
     event BalanceTrasfered(uint256 balance);
@@ -32,8 +34,8 @@ contract DeploymentFactory {
         address _priceFeed,
         address _factory,
         address _netowrkWrappedToken,
-        string memory _defaultFactoryName,
-        bytes32 _originalHash
+        address _verificationService,
+        string memory _defaultFactoryName
     ) {
         owner = msg.sender;
         feeService = IFeeService(_feeService);
@@ -41,30 +43,7 @@ contract DeploymentFactory {
         factory = _factory;
         netowrkWrappedToken = _netowrkWrappedToken;
         defaultFactoryName = _defaultFactoryName;
-        originalBytecodeHash = _originalHash;
-    }
-
-    function getBytecode(
-        address _contractAddr
-    ) internal view returns (bytes memory) {
-        uint256 size;
-        assembly {
-            size := extcodesize(_contractAddr)
-        }
-
-        bytes memory code = new bytes(size);
-        assembly {
-            extcodecopy(_contractAddr, add(code, 0x20), 0, size)
-        }
-        return code;
-    }
-
-    function isContractUnaltered(
-        address _contractAddr
-    ) public view returns (bool) {
-        bytes memory b = getBytecode(_contractAddr);
-        bytes32 currentHash = keccak256(b);
-        return currentHash == originalBytecodeHash;
+        verificationService = _verificationService;
     }
 
     function createLedger(
@@ -78,15 +57,12 @@ contract DeploymentFactory {
         IOwnerManager _onwerManager = IOwnerManager(ownerManager);
         address[] memory owners = _onwerManager.getOwners();
         require(owners.length > 0, "Least one administrator should be present");
-        PaymentLedger ms = new PaymentLedger(
-            _name,
-            ownerManager,
-            ledgerSetting,
-            contractManager,
-            priceFeed
-        );
-        bool verified = isContractUnaltered(address(ms));
-        if (verified) {
+        PaymentLedger ms = new PaymentLedger();
+        ms.init(_name, ownerManager, ledgerSetting, contractManager, priceFeed);
+        IVerificationService v = IVerificationService(verificationService);
+
+        VerificationResult memory verified = v.verifyContract(address(ms));
+        if (verified.result) {
             contracts.push(address(ms));
         }
 

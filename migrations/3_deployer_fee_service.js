@@ -16,8 +16,9 @@ module.exports = async function (deployer) {
   console.log("Aggregator Service address");
   console.log(deployedAggregatorServiceAddress);
 
-  await deployer.deploy(
-    FeeService,
+  var instance = await deployer.deploy(FeeService);
+
+  await instance.init(
     deployedAggregatorServiceAddress,
     process.env.FeeCollectorAddress,
     100

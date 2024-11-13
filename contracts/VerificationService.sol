@@ -6,8 +6,10 @@ import "../interfaces/ILedger.sol";
 import "../interfaces/ILedgerSettings.sol";
 import "../interfaces/IPriceFeed.sol";
 import "../interfaces/IOwnerManager.sol";
+import "../structrues/verification_result.sol";
+import "../interfaces/IVerificationService.sol";
 
-contract VerificationService {
+contract VerificationService is IVerificationService {
     bytes32 private ledgerHash;
     bytes32 private ownerServiceHash;
     bytes32 private ledgerSettingsHash;
@@ -43,6 +45,13 @@ contract VerificationService {
         return code;
     }
 
+    function getHash(address _contractAddr) internal view returns (bytes32) {
+        bytes memory b = getBytecode(_contractAddr);
+        bytes32 currentHash = keccak256(b);
+
+        return currentHash;
+    }
+
     function isContractUnaltered(
         address _contractAddr,
         bytes32 expected
@@ -54,20 +63,20 @@ contract VerificationService {
 
     function verifyContract(
         address currentContract
-    ) external view returns (bool) {
+    ) external view returns (VerificationResult memory) {
         ILedger ledger = ILedger(currentContract);
         IPriceFeed feed = ledger.getPriceFeed();
         IOwnerManager ownerManager = ledger.getOwnerManager();
-        ILedgerSettings ledgerSettins = ledger.getLedgerSettings();
+        ILedgerSettings ledgerSettings = ledger.getLedgerSettings();
 
-        bool ledgerVerified = isContractUnaltered(address(ledger), ledgerHash);
+        bool ledgerVerified = isContractUnaltered(currentContract, ledgerHash);
         bool feedVerified = isContractUnaltered(address(feed), feedHash);
         bool ownerVeified = isContractUnaltered(
             address(ownerManager),
             ownerServiceHash
         );
         bool ledgerSettigsVerified = isContractUnaltered(
-            address(ledgerSettins),
+            address(ledgerSettings),
             ledgerSettingsHash
         );
 
@@ -75,6 +84,18 @@ contract VerificationService {
             feedVerified &&
             ownerVeified &&
             ledgerSettigsVerified;
-        return verified;
+
+        return
+            VerificationResult({
+                result: verified,
+                ledgerVerifiedProvided: getHash(currentContract),
+                ledgerVerifiedExpected: ledgerHash,
+                feedVerifiedProvided: getHash(address(feed)),
+                feedVerifiedExpected: feedHash,
+                ownerVeifiedProvided: getHash(address(ownerManager)),
+                ownerVeifiedExpected: ownerServiceHash,
+                ledgerSettigsVerifiedProvided: getHash(address(ledgerSettings)),
+                ledgerSettigsVerifiedExpected: ledgerSettingsHash
+            });
     }
 }

@@ -9,14 +9,20 @@ import "../structrues/factory.sol";
 import "../interfaces/IERC20.sol";
 
 contract FeeService is IPriceFeed {
+    bool private initialize = false;
     AggregatorV3Interface internal priceFeed;
     uint256 private feeInUsd;
     address private taxAddress;
 
-    constructor(address _priceFeed, address _taxAddress, uint256 _feeInUsd) {
+    function init(
+        address _priceFeed,
+        address _taxAddress,
+        uint256 _feeInUsd
+    ) external onlyOnce returns (bool) {
         priceFeed = AggregatorV3Interface(_priceFeed);
         feeInUsd = _feeInUsd;
         taxAddress = _taxAddress;
+        return true;
     }
 
     function getFeeInEthAndUsd()
@@ -69,6 +75,11 @@ contract FeeService is IPriceFeed {
 
     modifier onlyOwner() {
         require(msg.sender == taxAddress, "Not authorized");
+        _;
+    }
+
+    modifier onlyOnce() {
+        require(initialize == false, "Initialized!");
         _;
     }
 }

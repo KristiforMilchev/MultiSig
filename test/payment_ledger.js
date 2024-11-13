@@ -32,7 +32,8 @@ contract("PaymentLedger", (accounts) => {
     var fees = await mockFeeService.getFeeInEthAndUsd();
     feeInWei = fees[0];
 
-    paymentLedger = await PaymentLedger.new(
+    paymentLedger = await PaymentLedger.new();
+    paymentLedger.init(
       "Payment Ledger",
       mockOwnerManager.address,
       mockLedgerSettings.address,

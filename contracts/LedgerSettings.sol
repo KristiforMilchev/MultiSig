@@ -4,6 +4,7 @@ import "../structrues/SettingProposal.sol";
 import "../interfaces/IOwnerManager.sol";
 
 contract LedgerSettings {
+    bool private initialize = false;
     mapping(uint256 => SettingsProposal) public settingsProposals;
     uint256 private settingsProposalNonce = 0;
     uint256 public maxDailyTransactions = 5;
@@ -13,18 +14,19 @@ contract LedgerSettings {
     IOwnerManager private ownerManager;
     event SettingProposed(uint256 id);
 
-    constructor(
+    function init(
         address _ownerManager,
         bool _isMaxDailyTransactionsEnabled,
         uint256 _maxDailyTransactions,
         bool _isMaxTransactionAmountEnabled,
         uint256 _maxTransactionAmountUSD
-    ) {
+    ) external onlyOnce returns (bool) {
         ownerManager = IOwnerManager(_ownerManager);
         isMaxDailyTransactionsEnabled = _isMaxDailyTransactionsEnabled;
         maxDailyTransactions = _maxDailyTransactions;
         isMaxDailyTransactionsEnabled = _isMaxTransactionAmountEnabled;
         maxTransactionAmountUSD = _maxTransactionAmountUSD;
+        return true;
     }
 
     function getSettingProposalById(
@@ -110,6 +112,10 @@ contract LedgerSettings {
             }
         }
         require(isOwner, "Not authorized");
+        _;
+    }
+    modifier onlyOnce() {
+        require(initialize == false, "Initialized!");
         _;
     }
 }

@@ -19,13 +19,8 @@ contract("LedgerSettings", function (accounts) {
       await mockContract.mock.getOwners.returns(owners);
 
       // Deploy the LedgerSettings contract with the mock address
-      settingsInstance = await LedgerSettings.new(
-        mockContract.address,
-        true,
-        5,
-        true,
-        10000
-      );
+      settingsInstance = await LedgerSettings.new();
+      settingsInstance.init(mockContract.address, true, 5, true, 10000);
     } catch (ex) {
       console.log(ex);
     }

@@ -30,7 +30,8 @@ contract DeploymentBuilder {
         SmartContractToken[] memory erc20,
         address[] memory nfts
     ) public payable returns (address) {
-        ContractService cs = new ContractService(
+        ContractService cs = new ContractService();
+        cs.init(
             factory,
             netowrkWrappedToken,
             onwerManager,
@@ -50,7 +51,9 @@ contract DeploymentBuilder {
         uint256 maxDailyTransactionCount,
         uint256 maxDailyAmount
     ) public payable returns (address) {
-        LedgerSettings ls = new LedgerSettings(
+        LedgerSettings ls = new LedgerSettings();
+
+        ls.init(
             ownerManager,
             maxDailyTransactionsEnabled,
             maxDailyTransactionCount,
@@ -65,8 +68,8 @@ contract DeploymentBuilder {
     function createOwnerManager(
         address[] memory owners
     ) public payable returns (address) {
-        OwnerManager om = new OwnerManager(owners);
-
+        OwnerManager om = new OwnerManager();
+        om.init(owners);
         emit OwnerMangerCreated(address(om));
         return address(om);
     }

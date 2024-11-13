@@ -19,6 +19,7 @@ import "../structrues/SmartContractToken.sol";
 import "../structrues/transaction_setting.sol";
 
 contract PaymentLedger {
+    bool private initialize = false;
     mapping(uint256 => Transaction) private transactions;
     mapping(uint256 => Transaction) private nftTransactions;
     mapping(uint256 => SettingsProposal) public settingsProposals;
@@ -36,22 +37,19 @@ contract PaymentLedger {
     mapping(uint256 => uint256) private dailyTransactionCount;
     uint256 private lastTransactionDay;
 
-    constructor(
+    function init(
         string memory _name,
         address _ownerManager,
         address _ledgerSettings,
         address _contractManager,
         address _priceFeed
-    ) {
+    ) external onlyOnce returns (bool) {
         name = _name;
         ownerManager = IOwnerManager(_ownerManager);
         ledgerSettings = ILedgerSettings(_ledgerSettings);
         contractManager = IContractManager(_contractManager);
-        initializePriceFeed(_priceFeed);
-    }
-
-    function initializePriceFeed(address _priceFeed) internal returns (bool) {
         priceFeed = IPriceFeed(_priceFeed);
+
         return true;
     }
 
@@ -67,19 +65,19 @@ contract PaymentLedger {
         return true;
     }
 
-    function getPriceFeed() external view onlyOwner returns (address) {
+    function getPriceFeed() external view returns (address) {
         return address(priceFeed);
     }
 
-    function getOwnerManager() external view onlyOwner returns (address) {
+    function getOwnerManager() external view returns (address) {
         return address(ownerManager);
     }
 
-    function getLedgerSettings() external view onlyOwner returns (address) {
+    function getLedgerSettings() external view returns (address) {
         return address(ledgerSettings);
     }
 
-    function getContractManager() external view onlyOwner returns (address) {
+    function getContractManager() external view returns (address) {
         return address(contractManager);
     }
 
@@ -397,6 +395,11 @@ contract PaymentLedger {
                 "Transaction exceeds max amount limit"
             );
         }
+        _;
+    }
+
+    modifier onlyOnce() {
+        require(initialize == false, "Initialized!");
         _;
     }
 }

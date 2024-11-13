@@ -26,7 +26,8 @@ contract("ContractService", function (accounts) {
     mockPKV2 = await MockPKV2.instance(accounts[0], mockTokenPair.address);
     mockOwnerManager = await MockOwnerManager.instance(accounts[0], owners);
     dead = getDeadAddres();
-    instance = await ContractService.new(
+    instance = await ContractService.new();
+    await instance.init(
       mockPKV2.address,
       process.env.WrappedToken,
       mockOwnerManager.address,

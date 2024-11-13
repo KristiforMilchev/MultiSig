@@ -8,7 +8,8 @@ contract("OwnerManager", function (accounts) {
   const owners = [owner1, owner2, owner3];
 
   before(async () => {
-    instance = await OwnerManager.new(owners);
+    instance = await OwnerManager.new();
+    instance.init(owners);
   });
 
   it("should propose a new owner", async () => {
