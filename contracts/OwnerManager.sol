@@ -15,6 +15,7 @@ contract OwnerManager {
     function init(address[] memory _owners) external onlyOnce returns (bool) {
         require(_owners.length > 0, "Owners required");
         owners = _owners;
+        initialize = true;
         return true;
     }
 

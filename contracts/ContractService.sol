@@ -36,6 +36,7 @@ contract ContractService {
             whitelistedERC20.push(erc20[i]);
         }
         whitelistedERC721 = nfts;
+        initialize = true;
         return true;
     }
 

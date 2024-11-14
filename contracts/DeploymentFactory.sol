@@ -22,6 +22,7 @@ contract DeploymentFactory {
     address private netowrkWrappedToken;
     address private factory;
     address private verificationService;
+    address private feeServiceAddress;
     string private defaultFactoryName;
     IFeeService private feeService;
     address[] private contracts;
@@ -38,6 +39,7 @@ contract DeploymentFactory {
         string memory _defaultFactoryName
     ) {
         owner = msg.sender;
+        feeServiceAddress = _feeService;
         feeService = IFeeService(_feeService);
         priceFeed = _priceFeed;
         factory = _factory;
@@ -54,11 +56,18 @@ contract DeploymentFactory {
     ) public payable returns (address) {
         (uint256 feeInWei, ) = feeService.getFeeInEthAndUsd();
         require(msg.value >= feeInWei, "Insufficient registration fee");
+
         IOwnerManager _onwerManager = IOwnerManager(ownerManager);
         address[] memory owners = _onwerManager.getOwners();
         require(owners.length > 0, "Least one administrator should be present");
         PaymentLedger ms = new PaymentLedger();
-        ms.init(_name, ownerManager, ledgerSetting, contractManager, priceFeed);
+        ms.init(
+            _name,
+            ownerManager,
+            ledgerSetting,
+            contractManager,
+            feeServiceAddress
+        );
         IVerificationService v = IVerificationService(verificationService);
 
         VerificationResult memory verified = v.verifyContract(address(ms));

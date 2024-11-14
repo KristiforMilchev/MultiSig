@@ -1,10 +1,8 @@
 const MsFactory = artifacts.require("DeploymentFactory");
 require("dotenv").config();
 
-const feeService = "FeeService";
-const verificationService = "VerificationService";
-const feeServiceContract = artifacts.require(feeService);
-const verificationServiceContract = artifacts.require(verificationService);
+const feeServiceContract = artifacts.require("FeeService");
+const verificationServiceContract = artifacts.require("VerificationService");
 
 const aggregatorV3 = "AggregatorV3";
 const AggregatorV3 = artifacts.require(aggregatorV3);

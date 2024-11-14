@@ -26,6 +26,7 @@ contract LedgerSettings {
         maxDailyTransactions = _maxDailyTransactions;
         isMaxDailyTransactionsEnabled = _isMaxTransactionAmountEnabled;
         maxTransactionAmountUSD = _maxTransactionAmountUSD;
+        initialize = true;
         return true;
     }
 

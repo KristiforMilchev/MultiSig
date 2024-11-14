@@ -22,6 +22,7 @@ contract FeeService is IPriceFeed {
         priceFeed = AggregatorV3Interface(_priceFeed);
         feeInUsd = _feeInUsd;
         taxAddress = _taxAddress;
+        initialize = true;
         return true;
     }
 

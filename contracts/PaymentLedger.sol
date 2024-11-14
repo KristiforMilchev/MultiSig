@@ -49,7 +49,7 @@ contract PaymentLedger {
         ledgerSettings = ILedgerSettings(_ledgerSettings);
         contractManager = IContractManager(_contractManager);
         priceFeed = IPriceFeed(_priceFeed);
-
+        initialize = true;
         return true;
     }
 

@@ -12,8 +12,6 @@ module.exports = async function (deployer) {
   const contractServiceRuntimeBytecode = ContractService.deployedBytecode;
   const feeServiceRuntimeBytecode = FeeService.deployedBytecode;
 
-  console.log(paymentLedgerRuntimeBytecode);
-
   // Hash the trimmed bytecode
   const paymentLedgerBytecodeHash = web3.utils.keccak256(
     paymentLedgerRuntimeBytecode
